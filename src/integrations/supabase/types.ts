@@ -80,6 +80,33 @@ export type Database = {
           },
         ]
       }
+      community_results: {
+        Row: {
+          comment: string
+          created_at: string
+          description: string
+          email: string
+          id: string
+          timestamp: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          description: string
+          email: string
+          id?: string
+          timestamp?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
       datasets: {
         Row: {
           created_at: string

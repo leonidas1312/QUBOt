@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Result = {
   id: string;
@@ -10,12 +11,10 @@ export type Result = {
 
 type ResultsContextType = {
   results: Result[];
-  addResult: (result: Omit<Result, "id" | "timestamp">) => void;
+  addResult: (result: Omit<Result, "id" | "timestamp">) => Promise<void>;
 };
 
 const ResultsContext = createContext<ResultsContextType | undefined>(undefined);
-
-const STORAGE_KEY = 'qubo-solver-results';
 
 // Initial demo data
 const initialDemoResults: Result[] = [
@@ -36,22 +35,50 @@ const initialDemoResults: Result[] = [
 ];
 
 export const ResultsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [results, setResults] = useState<Result[]>(() => {
-    const storedResults = localStorage.getItem(STORAGE_KEY);
-    return storedResults ? JSON.parse(storedResults) : initialDemoResults;
-  });
+  const [results, setResults] = useState<Result[]>(initialDemoResults);
 
+  // Fetch results on mount
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
-  }, [results]);
+    fetchResults();
+  }, []);
 
-  const addResult = (newResult: Omit<Result, "id" | "timestamp">) => {
-    const result: Result = {
-      ...newResult,
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString().split("T")[0],
-    };
-    setResults((prev) => [result, ...prev]);
+  const fetchResults = async () => {
+    const { data, error } = await supabase
+      .from('community_results')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching results:', error);
+      return;
+    }
+
+    if (data) {
+      setResults(data.map(result => ({
+        ...result,
+        timestamp: new Date(result.timestamp).toISOString().split('T')[0]
+      })));
+    }
+  };
+
+  const addResult = async (newResult: Omit<Result, "id" | "timestamp">) => {
+    const { data, error } = await supabase
+      .from('community_results')
+      .insert([newResult])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding result:', error);
+      return;
+    }
+
+    if (data) {
+      setResults(prev => [{
+        ...data,
+        timestamp: new Date(data.timestamp).toISOString().split('T')[0]
+      }, ...prev]);
+    }
   };
 
   return (

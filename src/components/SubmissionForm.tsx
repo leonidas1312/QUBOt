@@ -10,6 +10,7 @@ export const SubmissionForm = () => {
   const [email, setEmail] = useState("");
   const [comment, setComment] = useState("");
   const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { addResult } = useResults();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,17 +20,25 @@ export const SubmissionForm = () => {
       return;
     }
 
-    addResult({
-      email,
-      comment,
-      description,
-    });
+    setIsSubmitting(true);
+    try {
+      await addResult({
+        email,
+        comment,
+        description,
+      });
 
-    // Clear form
-    setEmail("");
-    setComment("");
-    setDescription("");
-    toast.success("Results submitted successfully!");
+      // Clear form
+      setEmail("");
+      setComment("");
+      setDescription("");
+      toast.success("Results submitted successfully!");
+    } catch (error) {
+      toast.error("Failed to submit results. Please try again.");
+      console.error('Submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -64,8 +73,8 @@ export const SubmissionForm = () => {
             className="min-h-[100px]"
           />
           
-          <Button type="submit" className="w-full">
-            Submit Results
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit Results"}
           </Button>
         </div>
       </form>
