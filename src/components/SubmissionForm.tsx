@@ -4,18 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useResults } from "@/contexts/ResultsContext";
 
 export const SubmissionForm = () => {
   const [email, setEmail] = useState("");
   const [comment, setComment] = useState("");
+  const [description, setDescription] = useState("");
+  const { addResult } = useResults();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !comment) {
+    if (!email || !comment || !description) {
       toast.error("Please fill in all fields");
       return;
     }
-    // Here you would handle the submission to your backend
+
+    addResult({
+      email,
+      comment,
+      description,
+    });
+
+    // Clear form
+    setEmail("");
+    setComment("");
+    setDescription("");
     toast.success("Results submitted successfully!");
   };
 
@@ -35,6 +48,13 @@ export const SubmissionForm = () => {
             placeholder="Your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+          
+          <Textarea
+            placeholder="Description of your QUBO matrix..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="min-h-[100px]"
           />
           
           <Textarea
