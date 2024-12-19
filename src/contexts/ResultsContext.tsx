@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 export type Result = {
   id: string;
@@ -15,23 +15,35 @@ type ResultsContextType = {
 
 const ResultsContext = createContext<ResultsContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'qubo-solver-results';
+
+// Initial demo data
+const initialDemoResults: Result[] = [
+  {
+    id: "1",
+    email: "researcher@university.edu",
+    comment: "Achieved optimal solution with 98% accuracy",
+    description: "TSP problem with 100 cities",
+    timestamp: "2024-03-10",
+  },
+  {
+    id: "2",
+    email: "student@college.edu",
+    comment: "Interesting convergence patterns observed",
+    description: "Max-Cut on random graph",
+    timestamp: "2024-03-09",
+  },
+];
+
 export const ResultsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [results, setResults] = useState<Result[]>([
-    {
-      id: "1",
-      email: "researcher@university.edu",
-      comment: "Achieved optimal solution with 98% accuracy",
-      description: "TSP problem with 100 cities",
-      timestamp: "2024-03-10",
-    },
-    {
-      id: "2",
-      email: "student@college.edu",
-      comment: "Interesting convergence patterns observed",
-      description: "Max-Cut on random graph",
-      timestamp: "2024-03-09",
-    },
-  ]);
+  const [results, setResults] = useState<Result[]>(() => {
+    const storedResults = localStorage.getItem(STORAGE_KEY);
+    return storedResults ? JSON.parse(storedResults) : initialDemoResults;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+  }, [results]);
 
   const addResult = (newResult: Omit<Result, "id" | "timestamp">) => {
     const result: Result = {
