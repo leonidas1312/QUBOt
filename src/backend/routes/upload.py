@@ -5,7 +5,6 @@ from utils.QEAO import quantum_opt
 
 router = APIRouter()
 
-
 @router.post("/upload/")
 async def upload_qubo_matrix(
         file: UploadFile = File(...),
@@ -22,8 +21,7 @@ async def upload_qubo_matrix(
 
     # Load QUBO matrix
     try:
-        contents = await file.read()  # Read the file as binary
-        # Use numpy's frombuffer or a temporary file to handle the binary data
+        contents = await file.read()
         import tempfile
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(contents)
@@ -35,9 +33,9 @@ async def upload_qubo_matrix(
 
     # Run the optimization
     try:
-        result = quantum_opt(
+        best_bitstring, best_cost, cost_values, time_per_iteration, progress_rl_costs, progress_opt_costs = quantum_opt(
             QUBO_m=QUBO_matrix,
-            c=0,  # Placeholder for constant
+            c=0,
             num_layers=num_layers,
             max_iters=max_iters,
             nbitstrings=nbitstrings,
@@ -45,6 +43,17 @@ async def upload_qubo_matrix(
             rl_time=rl_time,
             initial_temperature=initial_temperature
         )
+
+        # Convert numpy arrays to Python lists for JSON serialization
+        result = {
+            "best_bitstring": best_bitstring.tolist() if isinstance(best_bitstring, np.ndarray) else best_bitstring,
+            "best_cost": float(best_cost) if isinstance(best_cost, (np.float32, np.float64)) else best_cost,
+            "cost_values": [float(x) for x in cost_values] if isinstance(cost_values, np.ndarray) else cost_values,
+            "time_per_iteration": float(time_per_iteration) if isinstance(time_per_iteration, (np.float32, np.float64)) else time_per_iteration,
+            "progress_rl_costs": [float(x) for x in progress_rl_costs] if isinstance(progress_rl_costs, np.ndarray) else progress_rl_costs,
+            "progress_opt_costs": [float(x) for x in progress_opt_costs] if isinstance(progress_opt_costs, np.ndarray) else progress_opt_costs
+        }
+
     except Exception as e:
         return JSONResponse(content={"error": f"Optimization failed: {str(e)}"}, status_code=500)
 
@@ -52,4 +61,3 @@ async def upload_qubo_matrix(
         "description": description,
         "result": result
     }
-
