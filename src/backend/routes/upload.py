@@ -44,14 +44,25 @@ async def upload_qubo_matrix(
             initial_temperature=initial_temperature
         )
 
-        # Convert numpy arrays to Python lists for JSON serialization
+        # Convert numpy arrays and values to Python native types for JSON serialization
+        def convert_numpy_array(arr):
+            if isinstance(arr, np.ndarray):
+                if arr.ndim == 0:  # Handle 0-d arrays
+                    return arr.item()
+                return [convert_numpy_array(x) for x in arr]
+            elif isinstance(arr, (np.float32, np.float64)):
+                return float(arr)
+            elif isinstance(arr, (np.int32, np.int64)):
+                return int(arr)
+            return arr
+
         result = {
-            "best_bitstring": best_bitstring.tolist() if isinstance(best_bitstring, np.ndarray) else best_bitstring,
-            "best_cost": float(best_cost) if isinstance(best_cost, (np.float32, np.float64)) else best_cost,
-            "cost_values": [float(x) for x in cost_values] if isinstance(cost_values, np.ndarray) else cost_values,
-            "time_per_iteration": float(time_per_iteration) if isinstance(time_per_iteration, (np.float32, np.float64)) else time_per_iteration,
-            "progress_rl_costs": [float(x) for x in progress_rl_costs] if isinstance(progress_rl_costs, np.ndarray) else progress_rl_costs,
-            "progress_opt_costs": [float(x) for x in progress_opt_costs] if isinstance(progress_opt_costs, np.ndarray) else progress_opt_costs
+            "best_bitstring": convert_numpy_array(best_bitstring),
+            "best_cost": convert_numpy_array(best_cost),
+            "cost_values": convert_numpy_array(cost_values),
+            "time_per_iteration": convert_numpy_array(time_per_iteration),
+            "progress_rl_costs": convert_numpy_array(progress_rl_costs),
+            "progress_opt_costs": convert_numpy_array(progress_opt_costs)
         }
 
     except Exception as e:
