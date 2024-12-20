@@ -21,15 +21,48 @@ export const FileUpload = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !description) {
-      toast.error("Please provide both a file and description");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!file || !description) {
+    toast.error("Please provide both a file and description");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("description", description);
+  formData.append("num_layers", "4"); // Replace with user input or default value
+  formData.append("max_iters", "1"); // Replace with user input or default value
+  formData.append("nbitstrings", "10"); // Replace with user input or default value
+  formData.append("opt_time", "10"); // Replace with user input or default value
+  formData.append("rl_time", "10"); // Replace with user input or default value
+  formData.append("initial_temperature", "1.0"); // Replace with user input or default value
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/upload/", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      toast.error(errorData.error || "An error occurred while processing.");
       return;
     }
-    // Here you would handle the file submission to your Python backend
-    toast.success("Processing started! You'll be notified when it's complete.");
-  };
+
+    const result = await response.json();
+    console.log("Result:", result);
+    toast.success("Processing completed successfully!");
+  } catch (error) {
+    console.error("Error:", error);
+    toast.error("Failed to communicate with the backend.");
+  }
+};
+
+
+
+
 
   return (
     <Card className="p-6 w-full max-w-2xl mx-auto">

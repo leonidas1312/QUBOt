@@ -148,7 +148,7 @@ def rescaled_rank_rewards(current_value, previous_values, q=1):
     :return: rescaled rank reward
     """
     Cq = calculate_percentile(previous_values, q)
-    print(f"Percentile cost: {Cq}")
+    #print(f"Percentile cost: {Cq}")
     if current_value < Cq:
         return -(q / 100)
     elif current_value > Cq:
@@ -189,7 +189,7 @@ def simplified_rl_search(bitstring, QUBO_matrix, const, time_limit, temperature=
     QUBO_matrix = torch.tensor(QUBO_matrix, dtype=torch.float32, device=device)
     const = torch.tensor(const, dtype=torch.float32, device=device)
     initial_bitstring = torch.tensor(bitstring, dtype=torch.float32, device=device)
-    print("initial bs : ", initial_bitstring)
+    #print("initial bs : ", initial_bitstring)
     # initial_bitstring = torch.randint(0, 2, (len(bitstring),), dtype=torch.float32, device=device)
     best_state = initial_bitstring.clone()
     state = initial_bitstring.clone()
@@ -198,7 +198,7 @@ def simplified_rl_search(bitstring, QUBO_matrix, const, time_limit, temperature=
     learning_rate = 0.1  # How quickly to update rewards
     best_cost = torch.matmul(state, torch.matmul(QUBO_matrix, state)) + const
     progress_costs = [best_cost.item()]
-    print("Initial cost : ", best_cost.item())
+    #print("Initial cost : ", best_cost.item())
     # progress_costs_ucb = []
     cut_values = [best_cost.item()]  # List to store cut values of the last P episodes
     P = 100
@@ -230,12 +230,12 @@ def simplified_rl_search(bitstring, QUBO_matrix, const, time_limit, temperature=
         # UCB based single bit flipping
         total_actions = np.sum(bit_flip_counts)
         if total_actions > 0:
-            print("UCB rewards : ", bit_flip_total_rewards)
+            #print("UCB rewards : ", bit_flip_total_rewards)
             ucb_scores = bit_flip_total_rewards / (bit_flip_counts + 1e-5)
             ucb_scores += np.sqrt(2 * np.log(total_actions) / (bit_flip_counts + 1e-5))
-            print("UCB scores : ", ucb_scores)
+            #print("UCB scores : ", ucb_scores)
             bit_to_flip = np.argmax(ucb_scores)
-            print("UCB Bit to flip : ", bit_to_flip)
+            #print("UCB Bit to flip : ", bit_to_flip)
         else:
             bit_to_flip = np.random.choice(num_bits)
         new_state = state.clone()
@@ -244,8 +244,8 @@ def simplified_rl_search(bitstring, QUBO_matrix, const, time_limit, temperature=
 
         new_cost = torch.matmul(new_state, torch.matmul(QUBO_matrix, new_state)) + const
         progress_costs.append(new_cost.item())
-        print("New state : ", new_state)
-        print("New cost : ", new_cost)
+        #print("New state : ", new_state)
+        #print("New cost : ", new_cost)
         # Update for UCB
         #if remaining_time <= 0.9 * time_limit:
         if simulated_annealing(best_cost.item(), new_cost.item(), temperature):
