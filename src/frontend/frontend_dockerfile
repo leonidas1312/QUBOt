@@ -1,0 +1,18 @@
+# src/frontend/frontend_dockerfile
+FROM node:18-alpine
+
+# Set work directory
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json /app/
+RUN npm install
+
+# Copy project
+COPY . /app/
+
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Define default command
+CMD ["npm", "run", "dev"]

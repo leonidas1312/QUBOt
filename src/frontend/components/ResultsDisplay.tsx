@@ -1,6 +1,6 @@
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useResults } from "@/contexts/ResultsContext";
+import { Card } from "/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "/components/ui/tabs";
+import { useResults } from "/contexts/ResultsContext";
 
 export const ResultsDisplay = () => {
   const { results } = useResults();

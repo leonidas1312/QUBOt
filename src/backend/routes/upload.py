@@ -1,10 +1,17 @@
-from fastapi import APIRouter, File, UploadFile, Form
+# routes/upload.py
+from fastapi import APIRouter, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 import numpy as np
 import torch
-from utils.QEAO import quantum_opt
+import uuid
+from tasks import run_quantum_opt_task  # Import the Celery task
+import redis
+import json
 
 router = APIRouter()
+
+# Initialize Redis client for Pub/Sub
+redis_client = redis.Redis(host='redis', port=6379, db=0)
 
 def convert_numpy_array(arr):
     """Convert numpy arrays and tensors to Python native types"""
@@ -21,6 +28,26 @@ def convert_numpy_array(arr):
         return [convert_numpy_array(x) for x in arr]
     return arr
 
+@router.websocket("/ws/{task_id}")
+async def websocket_endpoint(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe(task_id)
+    try:
+        for message in pubsub.listen():
+            if message['type'] == 'message':
+                data = message['data'].decode('utf-8')
+                await websocket.send_text(data)
+                # If final message, close the connection
+                message_json = json.loads(data)
+                if 'final' in message_json and message_json['final']:
+                    break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        pubsub.unsubscribe(task_id)
+        pubsub.close()
+
 @router.post("/upload/")
 async def upload_qubo_matrix(
         file: UploadFile = File(...),
@@ -35,6 +62,9 @@ async def upload_qubo_matrix(
     if not file.filename.endswith(".npy"):
         return JSONResponse(content={"error": "Invalid file format. Please upload a .npy file."}, status_code=400)
 
+    # Generate a unique task ID
+    task_id = str(uuid.uuid4())
+
     try:
         contents = await file.read()
         import tempfile
@@ -46,32 +76,21 @@ async def upload_qubo_matrix(
     except Exception as e:
         return JSONResponse(content={"error": f"Failed to process file: {str(e)}"}, status_code=500)
 
-    try:
-        best_bitstring, best_cost, cost_values, time_per_iteration, progress_rl_costs, progress_opt_costs = quantum_opt(
-            QUBO_m=QUBO_matrix,
-            c=0,
-            num_layers=num_layers,
-            max_iters=max_iters,
-            nbitstrings=nbitstrings,
-            opt_time=opt_time,
-            rl_time=rl_time,
-            initial_temperature=initial_temperature
-        )
-
-        # Convert all numpy arrays and tensors to Python native types
-        result = {
-            "best_bitstring": convert_numpy_array(best_bitstring),
-            "best_cost": convert_numpy_array(best_cost),
-            "cost_values": convert_numpy_array(cost_values),
-            "time_per_iteration": convert_numpy_array(time_per_iteration),
-            "progress_rl_costs": convert_numpy_array(progress_rl_costs),
-            "progress_opt_costs": convert_numpy_array(progress_opt_costs)
-        }
-
-    except Exception as e:
-        return JSONResponse(content={"error": f"Optimization failed: {str(e)}"}, status_code=500)
-
-    return {
-        "description": description,
-        "result": result
+    # Prepare parameters
+    parameters = {
+        'num_layers': num_layers,
+        'max_iters': max_iters,
+        'nbitstrings': nbitstrings,
+        'opt_time': opt_time,
+        'rl_time': rl_time,
+        'initial_temperature': initial_temperature
     }
+
+    # Convert QUBO_matrix to list for JSON serializability
+    QUBO_matrix_list = QUBO_matrix.tolist()
+
+    # Start the Celery task
+    run_quantum_opt_task.delay(task_id, QUBO_matrix_list, parameters, description)
+
+    # Return the task ID to the client
+    return {"task_id": task_id}

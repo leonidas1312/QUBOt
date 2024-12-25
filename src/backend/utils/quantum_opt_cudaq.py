@@ -2,11 +2,8 @@ import copy
 import pennylane as qml
 from pennylane import numpy as np
 import numpy as cnp
-import gurobipy as gp
-from gurobipy import GRB
 import time
 import torch
-import asyncio
 
 
 # Functions used in the quantum enchanced optimizer
@@ -383,104 +380,3 @@ def quantum_opt(QUBO_m, c, num_layers, max_iters, nbitstrings, opt_time, rl_time
         progress_opt_costs
 
 
-def vqb_to_gurobi(qubo_array, qubo_constant, num_layers, num_cycles, opt_time, olr_time,
-                  gurobi_vqb_time, initial_temperature, verbose):
-    start_time = time.time()
-    best_sol_quantum, best_cost, cost_values_quantum, time_per_iteration, progress_costs, _ = quantum_opt(
-        qubo_array,
-        qubo_constant,
-        num_layers=num_layers,
-        max_iters=num_cycles,
-        nbitstrings=10,
-        opt_time=opt_time,
-        rl_time=olr_time,
-        initial_temperature=initial_temperature,
-        verbose=verbose)
-    end_time = time.time()
-    print("Total time of VQB = " + str(end_time - start_time) + " seconds")
-    best_sol, best_cf, sampled_costs, sampled_times = gurobi_opt(qubo_array, qubo_constant, gurobi_vqb_time,
-                                                                 initial_solution=best_sol_quantum)
-
-    return best_sol, best_cf, cost_values_quantum, sampled_costs, sampled_times, progress_costs, time_per_iteration
-
-
-def gurobi_only(qubo_array, qubo_constant, gurobi_only_total_time):
-    """
-    Run gurobi for a specified time or until it finds the optimal solution of a QUBO instance
-    :param qubo_array: QUBO array
-    :param qubo_constant: QUBO constant
-    :param gurobi_only_total_time: Total time to run in seconds
-    :return: Best solution, Best cost function, Sampled costs, Sampled times
-    """
-    best_sol, best_cf, s_costs, s_times = gurobi_opt(qubo_array, qubo_constant, gurobi_only_total_time)
-
-    return best_sol, best_cf, s_costs, s_times
-
-
-def gurobi_callback(model, where):
-    sample_step = 1
-    if where == GRB.Callback.MIP:
-        time_now = time.time() - model._start_time  # Access start_time from the model
-        if time_now // sample_step > model._last_recorded_time // sample_step:  # Check if 1 second have passed
-            model._last_recorded_time = time_now
-            best_obj = model.cbGet(GRB.Callback.MIP_OBJBST)
-            model._recorded_obj.append((time_now, best_obj))
-    elif where == GRB.Callback.SIMPLEX:
-        time_now = time.time() - model._start_time  # Access start_time from the model
-        if time_now // sample_step > model._last_recorded_time // sample_step:  # Check if 1 second have passed
-            model._last_recorded_time = time_now
-            best_obj = model.cbGet(GRB.Callback.SPX_OBJVAL)
-            model._recorded_obj.append((time_now, best_obj))
-
-
-def gurobi_opt(QUBO_m, c, time_limit, method='minimize', initial_solution=None):
-    """
-
-
-    :param QUBO_m: QUBO matrix to be optimized
-    :param c: constant for the optimization problem
-    :param time_limit: time limit for gurobi in seconds
-    :param method: Solve by minimization or maximization, default is 'minimize', for maximization input 'maximize'
-    :param initial_solution: initial solution to start the optimizer with
-    :return: best bitstring, best cost function value
-    """
-
-    # set up the problem
-    model = gp.Model()
-    model._start_time = time.time()  # Set start_time as an attribute of the model
-    model.setParam('TimeLimit', time_limit)
-    model.setParam('NodefileStart', 0.5)
-    x = model.addVars(QUBO_m.shape[0], vtype=GRB.BINARY, name="x")
-    obj = gp.QuadExpr()
-    for i in range(QUBO_m.shape[0]):
-        for j in range(QUBO_m.shape[1]):
-            obj += QUBO_m[i, j] * x[i] * x[j]
-    obj += c
-
-    if method == 'maximize':
-        # Set the objective as a maximization problem
-        model.setObjective(obj, GRB.MAXIMIZE)
-    else:
-        model.setObjective(obj)
-
-    # print("AAAA"+str(model._start_time))
-    # set initial solution from QUBO optimizer if any
-    if initial_solution is not None:
-        # best_heuristic_sol = initial_solution
-        for i, val in enumerate(initial_solution):
-            x[i].start = val
-
-    model._last_recorded_time = 0
-    model._recorded_obj = []
-
-    # optimize
-    model.optimize(gurobi_callback)
-    best_sol = []
-
-    for v in model.getVars():
-        best_sol.append(int(v.x))
-
-    sampled_objs = [obj for _, obj in model._recorded_obj]
-    sampled_times = [t for t, _ in model._recorded_obj]
-
-    return best_sol, model.objVal, sampled_objs, sampled_times

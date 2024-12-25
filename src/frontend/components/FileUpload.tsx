@@ -1,25 +1,50 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+// FileUpload.tsx
+import { useState, useEffect, useRef } from "react";
+import { Card } from "/components/ui/card";
+import { Button } from "/components/ui/button";
+import { Input } from "/components/ui/input";
+import { Textarea } from "/components/ui/textarea";
 import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
+import { Label } from "/components/ui/label";
 import { OptimizationResults } from "./OptimizationResults";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface OptimizationProgress {
+  iteration: number;
+  rl_cost: number;
+  opt_cost: number;
+}
+
+interface OptimizationFinalResult {
+  final: boolean;
+  description?: string;
+  result?: {
+    best_bitstring: number[];
+    best_cost: number;
+    cost_values: number[];
+    time_per_iteration: number[];
+    progress_rl_costs: number[];
+    progress_opt_costs: number[];
+  };
+  error?: string;
+}
 
 export const FileUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [parameters, setParameters] = useState({
     num_layers: 4,
-    max_iters: 1,
+    max_iters: 10, // Adjust as needed
     nbitstrings: 10,
     opt_time: 10,
     rl_time: 10,
     initial_temperature: 1.0
   });
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<OptimizationFinalResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState<OptimizationProgress[]>([]);
+  const socketRef = useRef<WebSocket | null>(null);
+  const taskIdRef = useRef<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -50,6 +75,9 @@ export const FileUpload = () => {
     }
 
     setIsProcessing(true);
+    setProgress([]);
+    setResults(null);
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("description", description);
@@ -66,20 +94,65 @@ export const FileUpload = () => {
       if (!response.ok) {
         const errorData = await response.json();
         toast.error(errorData.error || "An error occurred while processing.");
+        setIsProcessing(false);
         return;
       }
 
-      const result = await response.json();
-      console.log("Result:", result);
-      setResults(result);
-      toast.success("Processing completed successfully!");
+      const data = await response.json();
+      const { task_id } = data;
+      taskIdRef.current = task_id;
+
+      // Establish WebSocket connection
+      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${task_id}`);
+      socketRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("WebSocket connection established.");
+        toast.success("Optimization started. Receiving updates...");
+      };
+
+      ws.onmessage = (event) => {
+        const message: OptimizationFinalResult | OptimizationProgress = JSON.parse(event.data);
+        if ("final" in message && message.final) {
+          if (message.result) {
+            setResults(message);
+            toast.success("Processing completed successfully!");
+          }
+          ws.close();
+        } else if ("error" in message) {
+          toast.error(message.error || "An error occurred during optimization.");
+          ws.close();
+        } else {
+          // It's a progress update
+          setProgress(prev => [...prev, message as OptimizationProgress]);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        toast.error("WebSocket connection error.");
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+        setIsProcessing(false);
+      };
+
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to communicate with the backend.");
-    } finally {
       setIsProcessing(false);
     }
   };
+
+  useEffect(() => {
+    // Cleanup WebSocket on component unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -91,7 +164,7 @@ export const FileUpload = () => {
               Please upload your .npy file containing the QUBO matrix
             </p>
           </div>
-          
+
           <div className="space-y-4">
             <Input
               type="file"
@@ -99,7 +172,7 @@ export const FileUpload = () => {
               onChange={handleFileChange}
               className="cursor-pointer"
             />
-            
+
             <Textarea
               placeholder="Describe what this QUBO matrix represents..."
               value={description}
@@ -183,7 +256,7 @@ export const FileUpload = () => {
                 />
               </div>
             </div>
-            
+
             <Button type="submit" className="w-full" disabled={isProcessing}>
               {isProcessing ? "Processing..." : "Process Matrix"}
             </Button>
@@ -191,7 +264,27 @@ export const FileUpload = () => {
         </form>
       </Card>
 
-      {results && <OptimizationResults results={results} />}
+      {/* Display live progress with a chart */}
+      {progress.length > 0 && (
+        <Card className="p-6 w-full max-w-2xl mx-auto">
+          <h3 className="text-lg font-semibold mb-4">Optimization Progress</h3>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={progress}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="iteration" label={{ value: 'Iterations', position: 'insideBottom', offset: -5 }} />
+                <YAxis label={{ value: 'Cost', angle: -90, position: 'insideLeft' }} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="cost" stroke="#8884d8" name="Cost" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+        </Card>
+      )}
+
+
     </div>
   );
 };

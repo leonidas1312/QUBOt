@@ -1,7 +1,7 @@
-import { FileUpload } from "@/components/FileUpload";
-import { SubmissionForm } from "@/components/SubmissionForm";
-import { ResultsDisplay } from "@/components/ResultsDisplay";
-import { ResultsProvider } from "@/contexts/ResultsContext";
+import { FileUpload } from "/components/FileUpload";
+import { SubmissionForm } from "/components/SubmissionForm";
+import { ResultsDisplay } from "/components/ResultsDisplay";
+import { ResultsProvider } from "/contexts/ResultsContext";
 
 const Index = () => {
   return (
