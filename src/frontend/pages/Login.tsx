@@ -3,6 +3,7 @@ import { ThemeSupa } from "@supabase/auth-ui-shared"
 import { useNavigate } from "react-router-dom"
 import { useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
+import { toast } from "sonner"
 
 export default function Login() {
   const navigate = useNavigate()
@@ -10,10 +11,20 @@ export default function Login() {
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      if (event === 'SIGNED_IN' && session) {
+        toast.success('Successfully signed in!')
         navigate("/")
+      } else if (event === 'SIGNED_OUT') {
+        toast.info('Signed out')
       }
     })
+
+    // Check for OAuth error messages in URL
+    const params = new URLSearchParams(window.location.hash.substring(1))
+    const error = params.get('error_description')
+    if (error) {
+      toast.error(error)
+    }
   }, [navigate])
 
   return (
@@ -40,7 +51,7 @@ export default function Login() {
                 },
               },
             }}
-            providers={["github", "google"]}
+            providers={["github"]}
             redirectTo={window.location.origin}
           />
         </div>
