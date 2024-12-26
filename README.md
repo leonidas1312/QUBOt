@@ -37,7 +37,39 @@ QUBOt is a comprehensive platform for QUBO (Quadratic Unconstrained Binary Optim
 
 Below is a brief outline of the repository:
 
-├─ docker-compose.yml # Defines services: Redis, Backend (FastAPI), Celery Worker, Frontend ├─ src/ │ ├─ backend/ │ │ ├─ main.py # FastAPI entrypoint │ │ ├─ tasks.py # Celery tasks for optimization │ │ ├─ celery_app.py # Celery app instantiation │ │ ├─ routes/ │ │ │ └─ upload.py # File upload & WebSocket routes │ │ ├─ utils/ # Quantum logic & optimization utility code │ │ └─ requirements.txt # Python dependencies │ └─ frontend/ │ ├─ App.tsx # React application entry │ ├─ pages/ # Main pages: Solvers, Datasets, Playground, etc. │ ├─ components/ # Shared UI & form components │ ├─ vite.config.ts # Vite config │ └─ package.json # Frontend dependencies └─ README.md # The file you are currently reading
+├─ docker-compose.yml  
+   # Defines services: Redis, Backend (FastAPI), Celery Worker, Frontend
+
+├─ src/
+│  ├─ backend/
+│  │  ├─ main.py  
+│  │     # FastAPI entrypoint
+│  │  ├─ tasks.py  
+│  │     # Celery tasks for optimization
+│  │  ├─ celery_app.py  
+│  │     # Celery app instantiation
+│  │  ├─ routes/
+│  │  │  └─ upload.py  
+│  │        # File upload & WebSocket routes
+│  │  ├─ utils/  
+│  │     # Quantum logic & optimization utility code
+│  │  └─ requirements.txt  
+│  │     # Python dependencies
+
+│  └─ frontend/
+│     ├─ App.tsx  
+│     │  # React application entry
+│     ├─ pages/  
+│     │  # Main pages: Solvers, Datasets, Playground, etc.
+│     ├─ components/  
+│     │  # Shared UI & form components
+│     ├─ vite.config.ts  
+│     │  # Vite config
+│     └─ package.json  
+│        # Frontend dependencies
+
+└─ README.md  
+
 
 
 --------------------------------------------------------------------------------
