@@ -37,133 +37,38 @@ QUBOt is a comprehensive platform for QUBO (Quadratic Unconstrained Binary Optim
 
 Below is a brief outline of the repository:
 ```
-Directory structure:
-└── leonidas1312-qubo-solver-showcase/
-    ├── bun.lockb
-    ├── public/
-    ├── package.json
-    ├── README.md
-    ├── docker-compose.yml
-    ├── supabase/
-    │   └── config.toml
-    └── src/
-        ├── backend/
-        │   ├── main.py
-        │   ├── __pycache__/
-        │   ├── requirements.txt
-        │   ├── routes/
-        │   │   ├── __pycache__/
-        │   │   └── upload.py
-        │   ├── celery_app.py
-        │   ├── tasks.py
-        │   ├── backend_dockerfile
-        │   └── utils/
-        │       ├── QEAO.py
-        │       ├── quantum_opt_cudaq.py
-        │       └── __pycache__/
-        ├── frontend/
-        │   ├── main.tsx
-        │   ├── index.html
-        │   ├── App.tsx
-        │   ├── eslint.config.js
-        │   ├── vite.config.ts
-        │   ├── index.css
-        │   ├── components/
-        │   │   ├── FileUpload.tsx
-        │   │   ├── SubmissionForm.tsx
-        │   │   ├── OptimizationResults.tsx
-        │   │   ├── ResultsDisplay.tsx
-        │   │   ├── AppSidebar.tsx
-        │   │   ├── ui/
-        │   │   │   ├── tooltip.tsx
-        │   │   │   ├── toaster.tsx
-        │   │   │   ├── input-otp.tsx
-        │   │   │   ├── alert.tsx
-        │   │   │   ├── sonner.tsx
-        │   │   │   ├── input.tsx
-        │   │   │   ├── accordion.tsx
-        │   │   │   ├── toggle-group.tsx
-        │   │   │   ├── table.tsx
-        │   │   │   ├── switch.tsx
-        │   │   │   ├── label.tsx
-        │   │   │   ├── navigation-menu.tsx
-        │   │   │   ├── dropdown-menu.tsx
-        │   │   │   ├── toast.tsx
-        │   │   │   ├── form.tsx
-        │   │   │   ├── popover.tsx
-        │   │   │   ├── chart.tsx
-        │   │   │   ├── use-toast.ts
-        │   │   │   ├── alert-dialog.tsx
-        │   │   │   ├── skeleton.tsx
-        │   │   │   ├── sidebar.tsx
-        │   │   │   ├── radio-group.tsx
-        │   │   │   ├── hover-card.tsx
-        │   │   │   ├── breadcrumb.tsx
-        │   │   │   ├── badge.tsx
-        │   │   │   ├── collapsible.tsx
-        │   │   │   ├── pagination.tsx
-        │   │   │   ├── select.tsx
-        │   │   │   ├── command.tsx
-        │   │   │   ├── progress.tsx
-        │   │   │   ├── button.tsx
-        │   │   │   ├── checkbox.tsx
-        │   │   │   ├── slider.tsx
-        │   │   │   ├── context-menu.tsx
-        │   │   │   ├── scroll-area.tsx
-        │   │   │   ├── avatar.tsx
-        │   │   │   ├── separator.tsx
-        │   │   │   ├── textarea.tsx
-        │   │   │   ├── toggle.tsx
-        │   │   │   ├── sheet.tsx
-        │   │   │   ├── dialog.tsx
-        │   │   │   ├── card.tsx
-        │   │   │   ├── resizable.tsx
-        │   │   │   ├── menubar.tsx
-        │   │   │   ├── tabs.tsx
-        │   │   │   ├── carousel.tsx
-        │   │   │   ├── calendar.tsx
-        │   │   │   ├── drawer.tsx
-        │   │   │   └── aspect-ratio.tsx
-        │   │   └── uploads/
-        │   │       ├── AlgorithmParametersForm.tsx
-        │   │       ├── FileUploadForm.tsx
-        │   │       ├── DatasetUpload.tsx
-        │   │       └── SolverUpload.tsx
-        │   ├── postcss.config.js
-        │   ├── tsconfig.node.json
-        │   ├── lib/
-        │   │   └── utils.ts
-        │   ├── tsconfig.app.json
-        │   ├── package.json
-        │   ├── hooks/
-        │   │   ├── use-mobile.tsx
-        │   │   └── use-toast.ts
-        │   ├── pages/
-        │   │   ├── Solvers.tsx
-        │   │   ├── Community.tsx
-        │   │   ├── Playground.tsx
-        │   │   ├── Index.tsx
-        │   │   ├── Datasets.tsx
-        │   │   └── Login.tsx
-        │   ├── components.json
-        │   ├── contexts/
-        │   │   └── ResultsContext.tsx
-        │   ├── tailwind.config.ts
-        │   ├── integrations/
-        │   │   └── supabase/
-        │   │       ├── types.ts
-        │   │       └── client.ts
-        │   ├── App.css
-        │   ├── tsconfig.json
-        │   ├── package-lock.json
-        │   ├── frontend_dockerfile
-        │   ├── vite-env.d.ts
-        │   └── supabase/
-        │       └── config.toml
-        └── integrations/
-            └── supabase/
-                ├── types.ts
-                └── client.ts
+├─ docker-compose.yml  
+   # Defines services: Redis, Backend (FastAPI), Celery Worker, Frontend
+
+├─ src/
+│  ├─ backend/
+│  │  ├─ main.py  
+│  │     # FastAPI entrypoint
+│  │  ├─ tasks.py  
+│  │     # Celery tasks for optimization
+│  │  ├─ celery_app.py  
+│  │     # Celery app instantiation
+│  │  ├─ routes/
+│  │  │  └─ upload.py  
+│  │        # File upload & WebSocket routes
+│  │  ├─ utils/  
+│  │     # Quantum logic & optimization utility code
+│  │  └─ requirements.txt  
+│  │     # Python dependencies
+
+│  └─ frontend/
+│     ├─ App.tsx  
+│     │  # React application entry
+│     ├─ pages/  
+│     │  # Main pages: Solvers, Datasets, Playground, etc.
+│     ├─ components/  
+│     │  # Shared UI & form components
+│     ├─ vite.config.ts  
+│     │  # Vite config
+│     └─ package.json  
+│        # Frontend dependencies
+
+└─ README.md  
 
 ```
 
