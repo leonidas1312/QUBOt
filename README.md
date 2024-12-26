@@ -1,4 +1,4 @@
-QUBOt README
+QUBOt
 ============
 
 Welcome to **QUBOt**! This repository aims to foster a community for optimization enthusiasts—developers, research scientists, operations researchers, and more. QUBOt organizes and provides:
