@@ -69,7 +69,6 @@ Below is a brief outline of the repository:
 │        # Frontend dependencies
 
 └─ README.md  
-
 ```
 
 
@@ -85,8 +84,8 @@ Below is a brief outline of the repository:
    - Real-time updates over WebSocket (FastAPI + Redis).
    - Graphical progress charts with `recharts`.
 
-3. **Quantum + RL**  
-   - Celery tasks implementing a quantum-inspired RL solver (using PennyLane, PyTorch, etc.).
+3. **Run the optimization**  
+   - Celery tasks used to isolate the optimization task to run in different processes in order to not interfere with the rest of the page.
 
 4. **Community Forum**  
    - Share your results, experiences, tips, or start discussions on best solver–dataset combos.
@@ -122,38 +121,16 @@ Below is a brief outline of the repository:
 - [Node.js & npm](https://nodejs.org/en/) (recommended installation via [nvm](https://github.com/nvm-sh/nvm)).
 - [Python 3.11](https://www.python.org/downloads/) or higher for the backend + `pip`.
 
-### 2. Clone & Install
-```bash
-git clone <REPOSITORY_URL>
-cd QUBOt
-```
-#### Backend:
-```bash
-cd src/backend
-pip install -r requirements.txt
-```
-#### Frontend:
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-### 3. Running locally
-- Backend runs on http://127.0.0.1:8000
-- Frontend runs on http://127.0.0.1:8080
-
-Check your browser at http://127.0.0.1:8080. If you modify Python or React files, auto-reloads will reflect changes.
-
-## Docker Usage
+### 2. Docker Usage
 A docker-compose.yml is provided to orchestrate all services (Backend, Frontend, Redis, Celery) in containers:
 
-1. Install Docker and Docker Compose if not already installed.
-2. Clone this repository:
+- Install Docker Desktop if not already installed. Before starting with commands, make sure you have the Docker Desktop up and running.
+- Clone this repository:
 ```bash
-git clone <REPOSITORY_URL>
-cd QUBOt
+git clone https://github.com/leonidas1312/qubot
+cd qubot
 ```
-3. Build and start:
+- Build and start:
 ```bash
 docker-compose up --build
 ```
