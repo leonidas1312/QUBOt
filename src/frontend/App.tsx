@@ -7,6 +7,8 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import Index from "./pages/Index"
 import Login from "./pages/Login"
+import Community from "./pages/Community"
+import Datasets from "./pages/Datasets"
 
 const queryClient = new QueryClient()
 
@@ -23,6 +25,8 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/community" element={<Community />} />
+                <Route path="/datasets" element={<Datasets />} />
               </Routes>
             </main>
           </div>

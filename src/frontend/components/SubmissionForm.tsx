@@ -59,12 +59,6 @@ export const SubmissionForm = () => {
             onChange={(e) => setEmail(e.target.value)}
           />
           
-          <Textarea
-            placeholder="Description of your QUBO matrix..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="min-h-[100px]"
-          />
           
           <Textarea
             placeholder="Comments about your results..."

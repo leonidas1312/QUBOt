@@ -1,4 +1,4 @@
-import { Home, LogIn, Database, Box } from "lucide-react"
+import { Home, LogIn, Database, Box, Users, Terminal } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import {
   Sidebar,
@@ -33,6 +33,16 @@ const items = [
     title: "Datasets",
     icon: Database,
     url: "/datasets",
+  },
+  {
+    title: "Playground",
+    icon: Terminal,
+    url: "/playground",
+  },
+  {
+    title: "Community",
+    icon: Users,
+    url: "/community",
   },
 ]
 
