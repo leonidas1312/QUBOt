@@ -1,9 +1,8 @@
+import { useState, useRef } from "react";
 import { Card } from "/components/ui/card";
 import { Button } from "/components/ui/button";
-import { Input } from "/components/ui/input";
 import { Textarea } from "/components/ui/textarea";
 import { toast } from "sonner";
-import { Label } from "/components/ui/label";
 import { Upload } from "lucide-react";
 
 interface FileUploadFormProps {
@@ -27,6 +26,7 @@ export const FileUploadForm = ({
 }: FileUploadFormProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [fileDescription, setFileDescription] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -38,6 +38,10 @@ export const FileUploadForm = ({
       setFile(selectedFile);
       toast.success("File uploaded successfully!");
     }
+  };
+
+  const handleChooseFile = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,17 +76,26 @@ export const FileUploadForm = ({
           <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
             <Upload className="w-12 h-12 mb-4 text-gray-400" />
             <input
+              ref={fileInputRef}
               type="file"
               accept={acceptedFileType}
               onChange={handleFileChange}
               className="hidden"
               id="file-upload"
             />
-            <label htmlFor="file-upload">
-              <Button variant="outline" className="cursor-pointer">
-                Choose File
-              </Button>
-            </label>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleChooseFile}
+              className="mb-2"
+            >
+              Choose File
+            </Button>
+            {file && (
+              <p className="text-sm text-muted-foreground">
+                Selected: {file.name}
+              </p>
+            )}
             <p className="mt-2 text-sm text-gray-500">
               Upload {fileExtension} files only
             </p>
