@@ -128,6 +128,9 @@ A docker-compose.yml is provided to orchestrate all services (Backend, Frontend,
 - Clone this repository:
 ```bash
 git clone https://github.com/leonidas1312/qubot
+```
+- Move to root directory:
+```bash
 cd qubot
 ```
 - Build and start:
