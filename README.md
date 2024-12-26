@@ -36,7 +36,7 @@ QUBOt is a comprehensive platform for QUBO (Quadratic Unconstrained Binary Optim
 ## Project Structure
 
 Below is a brief outline of the repository:
-
+```
 Directory structure:
 └── leonidas1312-qubo-solver-showcase/
     ├── bun.lockb
@@ -165,7 +165,7 @@ Directory structure:
                 ├── types.ts
                 └── client.ts
 
-
+```
 
 
 --------------------------------------------------------------------------------
