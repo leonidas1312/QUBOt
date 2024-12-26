@@ -14,7 +14,6 @@ services:
     build:
       context: ./src/backend
       dockerfile: backend_dockerfile
-    container_name: backend
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./src/backend:/app
@@ -48,7 +47,6 @@ services:
     build:
       context: ./src/frontend
       dockerfile: frontend_dockerfile
-    container_name: frontend
     ports:
       - "8080:8080"
     volumes:
