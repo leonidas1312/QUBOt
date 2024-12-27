@@ -1,6 +1,7 @@
 QUBOt
 ============
 It's like HuggingFace for optimization researchers!
+
 Welcome to **QUBOt**! This repository aims to foster a community for optimization enthusiasts—developers, research scientists, operations researchers, and more. QUBOt organizes and provides:
 
 - **Solvers (Optimization Algorithms):** Upload or explore algorithms (e.g., Python `.py` solver files).
