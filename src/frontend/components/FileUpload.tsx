@@ -1,18 +1,16 @@
-// FileUpload.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Card } from "/components/ui/card";
 import { Button } from "/components/ui/button";
-import { Input } from "/components/ui/input";
 import { Textarea } from "/components/ui/textarea";
 import { toast } from "sonner";
-import { Label } from "/components/ui/label";
-import { OptimizationResults } from "./OptimizationResults";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { OptimizationParameters } from "./uploads/OptimizationParameters";
+import { ProgressChart } from "./uploads/ProgressChart";
+import { FileUploadZone } from "./uploads/FileUploadZone";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OptimizationProgress {
   iteration: number;
-  rl_cost: number;
-  opt_cost: number;
+  cost: number;
 }
 
 interface OptimizationFinalResult {
@@ -34,7 +32,7 @@ export const FileUpload = () => {
   const [description, setDescription] = useState("");
   const [parameters, setParameters] = useState({
     num_layers: 4,
-    max_iters: 10, // Adjust as needed
+    max_iters: 10,
     nbitstrings: 10,
     opt_time: 10,
     rl_time: 10,
@@ -45,8 +43,9 @@ export const FileUpload = () => {
   const [progress, setProgress] = useState<OptimizationProgress[]>([]);
   const socketRef = useRef<WebSocket | null>(null);
   const taskIdRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (!selectedFile.name.endsWith('.npy')) {
@@ -54,7 +53,7 @@ export const FileUpload = () => {
         return;
       }
       setFile(selectedFile);
-      toast.success("File uploaded successfully!");
+      toast.success("File selected successfully!");
     }
   };
 
@@ -64,6 +63,10 @@ export const FileUpload = () => {
       ...prev,
       [name]: parseFloat(value)
     }));
+  };
+
+  const handleChooseFile = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,14 +81,48 @@ export const FileUpload = () => {
     setProgress([]);
     setResults(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("description", description);
-    Object.entries(parameters).forEach(([key, value]) => {
-      formData.append(key, value.toString());
-    });
-
     try {
+      // Upload file to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('datasets')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast.error("Failed to upload file to storage");
+        console.error(uploadError);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Save metadata to database
+      const { error: dbError } = await supabase
+        .from('datasets')
+        .insert({
+          name: file.name,
+          description,
+          file_path: filePath,
+          format: 'npy'
+        });
+
+      if (dbError) {
+        toast.error("Failed to save file metadata");
+        console.error(dbError);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Create form data for optimization
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("description", description);
+      Object.entries(parameters).forEach(([key, value]) => {
+        formData.append(key, value.toString());
+      });
+
+      // Send to optimization endpoint
       const response = await fetch("http://127.0.0.1:8000/upload/", {
         method: "POST",
         body: formData,
@@ -93,26 +130,23 @@ export const FileUpload = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        toast.error(errorData.error || "An error occurred while processing.");
-        setIsProcessing(false);
-        return;
+        throw new Error(errorData.error || "Failed to process file");
       }
 
       const data = await response.json();
-      const { task_id } = data;
-      taskIdRef.current = task_id;
+      taskIdRef.current = data.task_id;
 
-      // Establish WebSocket connection
-      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${task_id}`);
+      // Set up WebSocket connection
+      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${data.task_id}`);
       socketRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WebSocket connection established.");
+        console.log("WebSocket connection established");
         toast.success("Optimization started. Receiving updates...");
       };
 
       ws.onmessage = (event) => {
-        const message: OptimizationFinalResult | OptimizationProgress = JSON.parse(event.data);
+        const message = JSON.parse(event.data);
         if ("final" in message && message.final) {
           if (message.result) {
             setResults(message);
@@ -120,39 +154,29 @@ export const FileUpload = () => {
           }
           ws.close();
         } else if ("error" in message) {
-          toast.error(message.error || "An error occurred during optimization.");
+          toast.error(message.error || "An error occurred during optimization");
           ws.close();
         } else {
-          // It's a progress update
           setProgress(prev => [...prev, message as OptimizationProgress]);
         }
       };
 
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
-        toast.error("WebSocket connection error.");
+        toast.error("WebSocket connection error");
       };
 
       ws.onclose = () => {
-        console.log("WebSocket connection closed.");
+        console.log("WebSocket connection closed");
         setIsProcessing(false);
       };
 
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to communicate with the backend.");
+      toast.error(error.message || "Failed to process file");
       setIsProcessing(false);
     }
   };
-
-  useEffect(() => {
-    // Cleanup WebSocket on component unmount
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
-    };
-  }, []);
 
   return (
     <div className="space-y-8">
@@ -165,126 +189,38 @@ export const FileUpload = () => {
             </p>
           </div>
 
-          <div className="space-y-4">
-            <Input
-              type="file"
-              accept=".npy"
-              onChange={handleFileChange}
-              className="cursor-pointer"
-            />
+          <FileUploadZone
+            file={file}
+            acceptedFileType=".npy"
+            onFileSelect={handleChooseFile}
+            fileInputRef={fileInputRef}
+            handleFileChange={handleFileChange}
+          />
 
-            <Textarea
-              placeholder="Describe what this QUBO matrix represents..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[100px]"
-            />
+          <Textarea
+            placeholder="Describe what this QUBO matrix represents..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="min-h-[100px]"
+          />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="num_layers">Number of Layers</Label>
-                <Input
-                  id="num_layers"
-                  name="num_layers"
-                  type="number"
-                  value={parameters.num_layers}
-                  onChange={handleParameterChange}
-                  min="1"
-                />
-              </div>
+          <OptimizationParameters
+            parameters={parameters}
+            onParameterChange={handleParameterChange}
+          />
 
-              <div className="space-y-2">
-                <Label htmlFor="max_iters">Maximum Iterations</Label>
-                <Input
-                  id="max_iters"
-                  name="max_iters"
-                  type="number"
-                  value={parameters.max_iters}
-                  onChange={handleParameterChange}
-                  min="1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nbitstrings">Number of Bitstrings</Label>
-                <Input
-                  id="nbitstrings"
-                  name="nbitstrings"
-                  type="number"
-                  value={parameters.nbitstrings}
-                  onChange={handleParameterChange}
-                  min="1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="opt_time">Optimization Time (s)</Label>
-                <Input
-                  id="opt_time"
-                  name="opt_time"
-                  type="number"
-                  value={parameters.opt_time}
-                  onChange={handleParameterChange}
-                  min="0"
-                  step="0.1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="rl_time">RL Time (s)</Label>
-                <Input
-                  id="rl_time"
-                  name="rl_time"
-                  type="number"
-                  value={parameters.rl_time}
-                  onChange={handleParameterChange}
-                  min="0"
-                  step="0.1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="initial_temperature">Initial Temperature</Label>
-                <Input
-                  id="initial_temperature"
-                  name="initial_temperature"
-                  type="number"
-                  value={parameters.initial_temperature}
-                  onChange={handleParameterChange}
-                  min="0"
-                  step="0.1"
-                />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isProcessing}>
-              {isProcessing ? "Processing..." : "Process Matrix"}
-            </Button>
-          </div>
+          <Button type="submit" className="w-full" disabled={isProcessing}>
+            {isProcessing ? "Processing..." : "Process Matrix"}
+          </Button>
         </form>
       </Card>
 
-      {/* Display live progress with a chart */}
       {progress.length > 0 && (
         <Card className="p-6 w-full max-w-2xl mx-auto">
           <h3 className="text-lg font-semibold mb-4">Optimization Progress</h3>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={progress}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="iteration" label={{ value: 'Iterations', position: 'insideBottom', offset: -5 }} />
-                <YAxis label={{ value: 'Cost', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="cost" stroke="#8884d8" name="Cost" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
+          <ProgressChart progress={progress} />
         </Card>
       )}
-
-
     </div>
   );
 };

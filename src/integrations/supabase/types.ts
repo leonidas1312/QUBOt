@@ -36,6 +36,36 @@ export type Database = {
         }
         Relationships: []
       }
+      datasets: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_path: string
+          format: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_path: string
+          format?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          format?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hardware_providers: {
         Row: {
           availability: boolean
@@ -102,6 +132,36 @@ export type Database = {
           github_username?: string | null
           id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      solvers: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_path: string
+          id: string
+          name: string
+          solver_parameters: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_path: string
+          id?: string
+          name: string
+          solver_parameters?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          id?: string
+          name?: string
+          solver_parameters?: Json | null
+          updated_at?: string
         }
         Relationships: []
       }
