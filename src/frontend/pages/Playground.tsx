@@ -9,9 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 interface Solver {
   id: string;
   name: string;
-  solver_parameters: {
-    inputs: { name: string; type: string }[];
-    outputs: { name: string; type: string }[];
+  solver_parameters?: {
+    inputs?: { name: string; type: string }[];
+    outputs?: { name: string; type: string }[];
   };
 }
 
@@ -28,6 +28,7 @@ const Playground = () => {
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [isRunning, setIsRunning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchSolversAndDatasets();
@@ -35,6 +36,7 @@ const Playground = () => {
 
   const fetchSolversAndDatasets = async () => {
     try {
+      setIsLoading(true);
       // Fetch solvers
       const { data: solversData, error: solversError } = await supabase
         .from('solvers')
@@ -57,18 +59,22 @@ const Playground = () => {
         description: "Failed to load solvers and datasets",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSolverChange = (value: string) => {
     setSelectedSolver(value);
     const solver = solvers.find(s => s.id === value);
-    if (solver) {
+    if (solver && solver.solver_parameters?.inputs) {
       const initialParams: Record<string, string> = {};
       solver.solver_parameters.inputs.forEach(input => {
         initialParams[input.name] = '';
       });
       setParameters(initialParams);
+    } else {
+      setParameters({});
     }
   };
 
@@ -89,7 +95,6 @@ const Playground = () => {
     setIsRunning(true);
     try {
       // Here you would typically make an API call to your backend
-      // to run the solver with the selected dataset and parameters
       toast({
         title: "Started",
         description: "The optimization process has started",
@@ -105,6 +110,18 @@ const Playground = () => {
       setIsRunning(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="p-8 flex justify-center items-center">
+            Loading...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const selectedSolverData = solvers.find(s => s.id === selectedSolver);
 
@@ -150,7 +167,7 @@ const Playground = () => {
             </Select>
           </div>
 
-          {selectedSolverData && (
+          {selectedSolverData?.solver_parameters?.inputs && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Algorithm Parameters</h3>
               {selectedSolverData.solver_parameters.inputs.map(input => (
