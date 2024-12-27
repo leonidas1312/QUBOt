@@ -52,7 +52,7 @@ Below is a brief outline of the repository:
 │  │  │  └─ upload.py  
 │  │        # File upload & WebSocket routes
 │  │  ├─ utils/  
-│  │     # Quantum logic & optimization utility code
+│  │     # Optimization utility code
 │  │  └─ requirements.txt  
 │  │     # Python dependencies
 
