@@ -25,8 +25,8 @@ const App = () => (
             <AppSidebar />
             <main className="flex-1">
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<Login />} />
+                <Route path="/login" element={<Index />} />
                 <Route path="/solvers" element={<Solvers />} />
                 <Route path="/datasets" element={<Datasets />} />
                 <Route path="/playground" element={<Playground />} />
