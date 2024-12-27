@@ -57,9 +57,16 @@ export const SolverUpload = () => {
         const params = paramMatches[1].split(',').map(param => {
           const trimmed = param.trim();
           const [name, type] = trimmed.split(':').map(p => p.trim());
-          return { name, type: type || 'any', description: '' };
-        });
+          return { 
+            name: name || '',
+            type: type || 'any',
+            description: ''
+          };
+        }).filter(param => param.name); // Filter out empty parameters
         setParameters(params);
+        toast.success("Parameters extracted successfully!");
+      } else {
+        toast.error("No solve function found in the file");
       }
       
       toast.success("File selected successfully!");
@@ -75,6 +82,13 @@ export const SolverUpload = () => {
 
     if (!file || !description) {
       toast.error("Please provide both a file and description");
+      return;
+    }
+
+    // Validate that all parameters have descriptions
+    const missingDescriptions = parameters.some(param => !param.description);
+    if (missingDescriptions) {
+      toast.error("Please provide descriptions for all parameters");
       return;
     }
 
@@ -152,14 +166,17 @@ export const SolverUpload = () => {
           />
 
           {parameters.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
               <h4 className="text-sm font-semibold">Parameter Descriptions</h4>
+              <p className="text-sm text-muted-foreground">
+                Please provide a description for each parameter of your solver
+              </p>
               {parameters.map((param, index) => (
-                <div key={index} className="space-y-2">
-                  <Label>
+                <div key={index} className="space-y-2 p-4 bg-white rounded-md shadow-sm">
+                  <Label className="font-medium">
                     {param.name} ({param.type})
                   </Label>
-                  <Input
+                  <Textarea
                     placeholder={`Describe what ${param.name} is used for...`}
                     value={param.description}
                     onChange={(e) => {
@@ -167,6 +184,7 @@ export const SolverUpload = () => {
                       newParams[index].description = e.target.value;
                       setParameters(newParams);
                     }}
+                    className="min-h-[80px]"
                   />
                 </div>
               ))}
