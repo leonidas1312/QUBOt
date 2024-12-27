@@ -1,5 +1,6 @@
 QUBOt
 ============
+It's like HuggingFace for optimization researchers!
 
 Welcome to **QUBOt**! This repository aims to foster a community for optimization enthusiasts—developers, research scientists, operations researchers, and more. QUBOt organizes and provides:
 
@@ -52,7 +53,7 @@ Below is a brief outline of the repository:
 │  │  │  └─ upload.py  
 │  │        # File upload & WebSocket routes
 │  │  ├─ utils/  
-│  │     # Quantum logic & optimization utility code
+│  │     # Optimization utility code
 │  │  └─ requirements.txt  
 │  │     # Python dependencies
 
