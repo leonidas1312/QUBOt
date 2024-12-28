@@ -8,12 +8,12 @@ import { FileUploadZone } from "./FileUploadZone";
 import { supabase } from "@/integrations/supabase/client";
 import { ItemGrid } from "./ItemGrid";
 import { useSession } from "@supabase/auth-helpers-react";
-import { SolverParameterForm } from "./SolverParameterForm";
 
 interface Parameter {
   name: string;
   type: string;
   description: string;
+  default_value?: string;
 }
 
 export const SolverUpload = () => {
@@ -27,6 +27,44 @@ export const SolverUpload = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const session = useSession();
 
+  const extractParameters = (content: string) => {
+    // Extract function definition
+    const funcMatch = content.match(/def\s+solve\s*\(([^)]*)\)/);
+    if (!funcMatch) {
+      toast.error("No solve function found in the file");
+      return [];
+    }
+
+    const paramsString = funcMatch[1];
+    const params = paramsString.split(',').map(param => {
+      const paramParts = param.trim().split('=');
+      const nameAndType = paramParts[0].split(':').map(p => p.trim());
+      
+      return {
+        name: nameAndType[0],
+        type: nameAndType[1] || 'any',
+        description: `Parameter ${nameAndType[0]}`,
+        default_value: paramParts[1]?.trim() || undefined
+      };
+    });
+
+    return params.filter(param => param.name && !param.default_value);
+  };
+
+  const extractOutputs = (content: string) => {
+    const returnMatches = content.match(/return\s+([^#\n]+)/g);
+    if (!returnMatches) return [];
+
+    return returnMatches.map((match, index) => {
+      const returnValue = match.replace('return', '').trim();
+      return {
+        name: `output_${index + 1}`,
+        type: 'any',
+        description: `Returns ${returnValue}`
+      };
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -37,24 +75,17 @@ export const SolverUpload = () => {
       setFile(selectedFile);
       
       const content = await selectedFile.text();
-      const paramMatches = content.match(/def\s+solve\s*\(([^)]*)\)/);
-      if (paramMatches && paramMatches[1]) {
-        const params = paramMatches[1].split(',').map(param => {
-          const trimmed = param.trim();
-          const [name, type] = trimmed.split(':').map(p => p.trim());
-          return { 
-            name: name || '',
-            type: type || 'any',
-            description: ''
-          };
-        }).filter(param => param.name);
-        setInputs(params);
-        toast.success("Parameters extracted successfully!");
-      } else {
-        toast.error("No solve function found in the file");
-      }
+      const detectedParams = extractParameters(content);
+      const detectedOutputs = extractOutputs(content);
       
-      toast.success("File selected successfully!");
+      setInputs(detectedParams);
+      setOutputs(detectedOutputs);
+      
+      if (detectedParams.length > 0 || detectedOutputs.length > 0) {
+        toast.success("Parameters and outputs detected successfully!");
+      } else {
+        toast.warning("No parameters or outputs detected");
+      }
     }
   };
 
@@ -68,12 +99,6 @@ export const SolverUpload = () => {
   
     if (!file || !description) {
       toast.error("Please provide both a file and description");
-      return;
-    }
-  
-    const missingDescriptions = [...inputs, ...outputs].some(param => !param.description);
-    if (missingDescriptions) {
-      toast.error("Please provide descriptions for all parameters");
       return;
     }
   
@@ -110,7 +135,6 @@ export const SolverUpload = () => {
       setPaperLink("");
       setInputs([]);
       setOutputs([]);
-      fetchSolvers();
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to upload solver");
@@ -126,7 +150,7 @@ export const SolverUpload = () => {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Upload Solver</h3>
             <p className="text-sm text-muted-foreground">
-              Please upload your .py file containing the solver algorithm
+              Upload your .py file containing the solver algorithm. Parameters and outputs will be detected automatically.
             </p>
           </div>
 
@@ -152,19 +176,34 @@ export const SolverUpload = () => {
             className="min-h-[100px]"
           />
 
-          <SolverParameterForm
-            parameters={inputs}
-            onParametersChange={setInputs}
-            title="Input Parameters"
-            description="Define the input parameters for your solver"
-          />
+          {inputs.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold">Detected Parameters:</h4>
+              <ul className="list-disc pl-5 space-y-2">
+                {inputs.map((param, index) => (
+                  <li key={index} className="text-sm">
+                    <span className="font-medium">{param.name}</span>
+                    {param.type !== 'any' && (
+                      <span className="text-muted-foreground"> ({param.type})</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-          <SolverParameterForm
-            parameters={outputs}
-            onParametersChange={setOutputs}
-            title="Output Parameters"
-            description="Define what outputs your solver will produce"
-          />
+          {outputs.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold">Detected Outputs:</h4>
+              <ul className="list-disc pl-5 space-y-2">
+                {outputs.map((output, index) => (
+                  <li key={index} className="text-sm">
+                    {output.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <Button type="submit" className="w-full" disabled={isProcessing}>
             {isProcessing ? "Uploading..." : "Upload Solver"}
