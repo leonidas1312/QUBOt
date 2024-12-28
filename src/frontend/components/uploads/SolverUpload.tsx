@@ -193,72 +193,45 @@ export const SolverUpload = () => {
 
   return (
     <div className="space-y-8">
-      <SolverGuidelines onGuidelinesAccepted={setGuidelinesAccepted} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SolverGuidelines onGuidelinesAccepted={setGuidelinesAccepted} />
 
-      <div className={`transition-opacity duration-300 ${guidelinesAccepted ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-        <Card className="p-6 w-full max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <h3 className="text-lg font-semibold">Upload Solver</h3>
-            <p className="text-sm text-muted-foreground">
-              Upload your `.py` file containing the solver algorithm. Parameters and outputs will be detected automatically.
-            </p>
+        <div className={`transition-opacity duration-300 ${guidelinesAccepted ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+          <Card className="p-6 h-full">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <h3 className="text-lg font-semibold">Upload Solver</h3>
+              <p className="text-sm text-muted-foreground">
+                Upload your `.py` file containing the solver algorithm.
+              </p>
 
-            <FileUploadZone
-              file={file}
-              acceptedFileType=".py"
-              onFileSelect={() => fileInputRef.current?.click()}
-              fileInputRef={fileInputRef}
-              handleFileChange={handleFileChange}
-            />
+              <FileUploadZone
+                file={file}
+                acceptedFileType=".py"
+                onFileSelect={() => fileInputRef.current?.click()}
+                fileInputRef={fileInputRef}
+                handleFileChange={handleFileChange}
+              />
 
-            <Input
-              type="url"
-              placeholder="Link to related paper (optional)"
-              value={paperLink}
-              onChange={(e) => setPaperLink(e.target.value)}
-            />
+              <Input
+                type="url"
+                placeholder="Link to related paper (optional)"
+                value={paperLink}
+                onChange={(e) => setPaperLink(e.target.value)}
+              />
 
-            <Textarea
-              placeholder="Describe what this solver does..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[100px]"
-            />
+              <Textarea
+                placeholder="Describe what this solver does..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="min-h-[100px]"
+              />
 
-            {inputs.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold">Detected Parameters:</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {inputs.map((param, index) => (
-                    <li key={index}>
-                      <span className="font-medium">{param.name}</span>
-                      {param.type !== "any" && (
-                        <span className="text-muted-foreground"> ({param.type})</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {outputs.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold">Detected Outputs:</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {outputs.map((output, index) => (
-                    <li key={index}>
-                      <span className="font-medium">{output.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isProcessing}>
-              {isProcessing ? "Uploading..." : "Upload Solver"}
-            </Button>
-          </form>
-        </Card>
+              <Button type="submit" className="w-full" disabled={isProcessing}>
+                {isProcessing ? "Uploading..." : "Upload Solver"}
+              </Button>
+            </form>
+          </Card>
+        </div>
       </div>
 
       <div className="w-full">
