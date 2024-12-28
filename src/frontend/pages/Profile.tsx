@@ -1,87 +1,101 @@
 import { useSession } from "@supabase/auth-helpers-react"
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ItemGrid } from "@/components/uploads/ItemGrid"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const Profile = () => {
   const session = useSession()
 
-  const { data: userSolvers } = useQuery({
-    queryKey: ['userSolvers'],
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ['profile', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session?.user?.id)
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    enabled: !!session?.user?.id,
+  })
+
+  const { data: userSolvers, isLoading: solversLoading } = useQuery({
+    queryKey: ['userSolvers', session?.user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('solvers')
         .select('*')
         .eq('user_id', session?.user?.id)
+
       if (error) throw error
       return data
     },
-    enabled: !!session?.user?.id
+    enabled: !!session?.user?.id,
   })
 
-  const { data: userDatasets } = useQuery({
-    queryKey: ['userDatasets'],
+  const { data: userDatasets, isLoading: datasetsLoading } = useQuery({
+    queryKey: ['userDatasets', session?.user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('datasets')
         .select('*')
         .eq('user_id', session?.user?.id)
+
       if (error) throw error
       return data
     },
-    enabled: !!session?.user?.id
+    enabled: !!session?.user?.id,
   })
 
-  if (!session) return null
+  if (profileLoading) {
+    return (
+      <div className="container mx-auto py-8 space-y-4">
+        <Skeleton className="h-12 w-48" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    )
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-4">
-          <Avatar className="h-20 w-20">
-            <AvatarImage src={session.user.user_metadata.avatar_url} />
-            <AvatarFallback>
-              {session.user.email?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <CardTitle className="text-2xl">
-              {session.user.email}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Member since {new Date(session.user.created_at).toLocaleDateString()}
-            </p>
-          </div>
+    <div className="container mx-auto py-8 px-4">
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
         </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <p><strong>Email:</strong> {profile?.email}</p>
+            <p><strong>Username:</strong> {profile?.username}</p>
+            {profile?.github_username && (
+              <p><strong>GitHub:</strong> {profile.github_username}</p>
+            )}
+          </div>
+        </CardContent>
       </Card>
 
       <Tabs defaultValue="solvers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList>
           <TabsTrigger value="solvers">My Solvers</TabsTrigger>
           <TabsTrigger value="datasets">My Datasets</TabsTrigger>
         </TabsList>
         <TabsContent value="solvers">
-          <div className="mt-6">
-            <h2 className="text-2xl font-bold mb-6">My Solvers</h2>
-            {userSolvers?.length === 0 ? (
-              <p className="text-muted-foreground">You haven't uploaded any solvers yet.</p>
-            ) : (
-              <ItemGrid items={userSolvers || []} type="solver" />
-            )}
-          </div>
+          {solversLoading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <ItemGrid items={userSolvers || []} type="solver" />
+          )}
         </TabsContent>
         <TabsContent value="datasets">
-          <div className="mt-6">
-            <h2 className="text-2xl font-bold mb-6">My Datasets</h2>
-            {userDatasets?.length === 0 ? (
-              <p className="text-muted-foreground">You haven't uploaded any datasets yet.</p>
-            ) : (
-              <ItemGrid items={userDatasets || []} type="dataset" />
-            )}
-          </div>
+          {datasetsLoading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <ItemGrid items={userDatasets || []} type="dataset" />
+          )}
         </TabsContent>
       </Tabs>
     </div>
