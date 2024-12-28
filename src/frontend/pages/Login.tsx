@@ -2,25 +2,25 @@ import React, { useEffect } from "react"
 import { Auth } from "@supabase/auth-ui-react"
 import { ThemeSupa } from "@supabase/auth-ui-shared"
 import { supabase } from "@/integrations/supabase/client"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useSession } from "@supabase/auth-helpers-react"
-import { motion, useMotionValue, useSpring } from "framer-motion"
 
 const Login = () => {
   const session = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
 
-  // If user is already logged in, redirect them to playground
   useEffect(() => {
     if (session) {
-      navigate("/playground")
+      // Redirect to the originally attempted URL or playground
+      const from = location.state?.from || "/playground"
+      navigate(from, { replace: true })
     }
-  }, [session, navigate])
+  }, [session, navigate, location])
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center relative overflow-hidden">
       <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col md:flex-row items-center gap-8">
-        {/* Left side: Title & small mission statement */}
         <div className="w-full md:w-1/2 text-left space-y-6 p-4">
           <h1 className="text-5xl font-bold text-gray-800">QUBOt</h1>
           <p className="text-lg text-gray-700 leading-relaxed">
@@ -29,7 +29,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Right side: Auth form */}
         <div className="w-full md:w-1/2">
           <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
             <Auth
