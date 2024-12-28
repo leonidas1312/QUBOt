@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,7 +29,8 @@ export const CreateJob = () => {
   const [selectedSolver, setSelectedSolver] = useState<string>("");
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [currentSolver, setCurrentSolver] = useState<Solver | null>(null);
-  const [selectedDatasetName, setSelectedDatasetName] = useState<string>("");  // New state for dataset name
+  const [selectedDatasetName, setSelectedDatasetName] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const session = useSession();
 
@@ -81,7 +82,6 @@ export const CreateJob = () => {
     const solver = solvers.find((s) => s.id === solverId);
     setCurrentSolver(solver || null);
     
-    // Initialize parameters with default values if available
     if (solver?.solver_parameters) {
       const initialParams: Record<string, string> = {};
       Object.values(solver.solver_parameters).forEach((param: any) => {
@@ -107,15 +107,36 @@ export const CreateJob = () => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("optimization_jobs").insert({
-        solver_id: selectedSolver,
-        dataset_id: selectedDataset,
-        user_id: session.user.id,
-        parameters: parameters,
+      // Create the job
+      const { data: job, error: jobError } = await supabase
+        .from("optimization_jobs")
+        .insert({
+          solver_id: selectedSolver,
+          dataset_id: selectedDataset,
+          user_id: session.user.id,
+          parameters: parameters,
+          status: 'PENDING'
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      // Call the Edge Function to start the optimization
+      const response = await fetch('/functions/v1/run-optimization', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ jobId: job.id })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to start optimization');
+      }
 
       toast({
         title: "Job created successfully",
@@ -132,6 +153,8 @@ export const CreateJob = () => {
         title: "Error creating job",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -174,49 +197,20 @@ export const CreateJob = () => {
         </div>
 
         {currentSolver && (
-          <>
-            {/* Display Solver Parameters */}
-            {currentSolver.solver_parameters && (
-              <SolverParameters
-                parameters={parameters}
-                solverParameters={Object.values(currentSolver.solver_parameters)}
-                onParameterChange={handleParameterChange}
-                datasetName={selectedDatasetName}  // Pass the dataset name
-              />
-            )}
-
-            {/* Display Solver Outputs */}
-            {currentSolver.solver_outputs && currentSolver.solver_outputs.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Expected Outputs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    {currentSolver.solver_outputs.map((output, index) => (
-                      <div key={index} className="p-2 border rounded">
-                        <p className="font-medium">{output.name}</p>
-                        <p className="text-sm text-gray-600">{output.type}</p>
-                        {output.description && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            {output.description}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
+          <SolverParameters
+            parameters={parameters}
+            solverParameters={Object.values(currentSolver.solver_parameters || {})}
+            onParameterChange={handleParameterChange}
+            datasetName={selectedDatasetName}
+          />
         )}
 
         <Button
           onClick={handleSubmit}
-          disabled={!selectedDataset || !selectedSolver}
+          disabled={!selectedDataset || !selectedSolver || isSubmitting}
           className="w-full"
         >
-          Create Job
+          {isSubmitting ? "Creating Job..." : "Create Job"}
         </Button>
       </CardContent>
     </Card>

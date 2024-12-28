@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Job {
   id: string;
@@ -25,7 +26,10 @@ export const JobManager = () => {
   useEffect(() => {
     if (session?.user) {
       fetchJobs();
-      subscribeToJobUpdates();
+      const channel = subscribeToJobUpdates();
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [session]);
 
@@ -58,14 +62,20 @@ export const JobManager = () => {
         },
         (payload) => {
           console.log('Job update received:', payload);
-          fetchJobs(); // Refresh jobs when updates occur
+          if (payload.eventType === 'UPDATE') {
+            setJobs(prevJobs => 
+              prevJobs.map(job => 
+                job.id === payload.new.id ? { ...job, ...payload.new } : job
+              )
+            );
+          } else if (payload.eventType === 'INSERT') {
+            setJobs(prevJobs => [payload.new, ...prevJobs]);
+          }
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return channel;
   };
 
   const getStatusColor = (status: Job['status']) => {
@@ -78,6 +88,19 @@ export const JobManager = () => {
         return 'bg-blue-500';
       default:
         return 'bg-gray-500';
+    }
+  };
+
+  const getProgressValue = (status: Job['status']) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 100;
+      case 'FAILED':
+        return 100;
+      case 'RUNNING':
+        return 50;
+      default:
+        return 0;
     }
   };
 
@@ -115,7 +138,7 @@ export const JobManager = () => {
                 </div>
               )}
               {job.status === 'RUNNING' && (
-                <Progress value={50} className="mb-4" />
+                <Progress value={getProgressValue(job.status)} className="mb-4" />
               )}
               {job.results && (
                 <div className="space-y-2">
