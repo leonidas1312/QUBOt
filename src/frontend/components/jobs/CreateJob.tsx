@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { SolverParameters } from "./SolverParameters";
 
 interface Dataset {
   id: string;
@@ -74,11 +74,11 @@ export const CreateJob = () => {
     const solver = solvers.find((s) => s.id === solverId);
     setCurrentSolver(solver || null);
     
-    // Initialize parameters with empty values
+    // Initialize parameters with default values if available
     if (solver?.solver_parameters) {
       const initialParams: Record<string, string> = {};
-      Object.keys(solver.solver_parameters).forEach((key) => {
-        initialParams[key] = "";
+      Object.values(solver.solver_parameters).forEach((param: any) => {
+        initialParams[param.name] = param.default_value || "";
       });
       setParameters(initialParams);
     }
@@ -168,39 +168,36 @@ export const CreateJob = () => {
         {currentSolver && (
           <>
             {/* Display Solver Parameters */}
-            {currentSolver.solver_parameters && Object.keys(currentSolver.solver_parameters).length > 0 && (
-              <div className="space-y-4">
-                <h3 className="font-medium">Solver Parameters</h3>
-                {Object.entries(currentSolver.solver_parameters).map(([key, value]) => (
-                  <div key={key} className="space-y-2">
-                    <Label>{key}</Label>
-                    <Input
-                      type="text"
-                      value={parameters[key] || ""}
-                      onChange={(e) => handleParameterChange(key, e.target.value)}
-                      placeholder={`Enter ${key}`}
-                    />
-                  </div>
-                ))}
-              </div>
+            {currentSolver.solver_parameters && (
+              <SolverParameters
+                parameters={parameters}
+                solverParameters={Object.values(currentSolver.solver_parameters)}
+                onParameterChange={handleParameterChange}
+              />
             )}
 
             {/* Display Solver Outputs */}
             {currentSolver.solver_outputs && currentSolver.solver_outputs.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="font-medium">Solver Outputs</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {currentSolver.solver_outputs.map((output, index) => (
-                    <div key={index} className="p-2 border rounded">
-                      <p className="font-medium">{output.name}</p>
-                      <p className="text-sm text-gray-600">{output.type}</p>
-                      {output.description && (
-                        <p className="text-sm text-gray-500 mt-1">{output.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Expected Outputs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    {currentSolver.solver_outputs.map((output, index) => (
+                      <div key={index} className="p-2 border rounded">
+                        <p className="font-medium">{output.name}</p>
+                        <p className="text-sm text-gray-600">{output.type}</p>
+                        {output.description && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            {output.description}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </>
         )}
