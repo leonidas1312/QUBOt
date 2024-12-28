@@ -111,6 +111,63 @@ export type Database = {
         }
         Relationships: []
       }
+      optimization_jobs: {
+        Row: {
+          created_at: string
+          dataset_id: string
+          error_message: string | null
+          id: string
+          logs: string[] | null
+          parameters: Json | null
+          results: Json | null
+          solver_id: string
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dataset_id: string
+          error_message?: string | null
+          id?: string
+          logs?: string[] | null
+          parameters?: Json | null
+          results?: Json | null
+          solver_id: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dataset_id?: string
+          error_message?: string | null
+          id?: string
+          logs?: string[] | null
+          parameters?: Json | null
+          results?: Json | null
+          solver_id?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_jobs_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "optimization_jobs_solver_id_fkey"
+            columns: ["solver_id"]
+            isOneToOne: false
+            referencedRelation: "solvers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -135,6 +192,33 @@ export type Database = {
           github_username?: string | null
           id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      solver_guidelines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -208,7 +292,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      job_status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
     }
     CompositeTypes: {
       [_ in never]: never
