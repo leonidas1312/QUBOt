@@ -1,7 +1,9 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Parameter } from "./solverUtils";
+import { useState } from "react";
 
 interface ParameterDescriptionDialogProps {
   isOpen: boolean;
@@ -18,14 +20,32 @@ export const ParameterDescriptionDialog = ({
   onParametersChange,
   title,
 }: ParameterDescriptionDialogProps) => {
+  // Create a local copy of parameters for editing
+  const [localParameters, setLocalParameters] = useState<Parameter[]>(parameters);
+
+  // Update local parameters when dialog opens with new parameters
+  React.useEffect(() => {
+    setLocalParameters(parameters);
+  }, [parameters]);
+
+  const handleApply = () => {
+    onParametersChange(localParameters);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    setLocalParameters(parameters); // Reset to original parameters
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 max-h-[60vh] overflow-y-auto py-4">
-          {parameters.map((param, index) => (
+          {localParameters.map((param, index) => (
             <div key={index} className="space-y-2">
               <div className="flex items-center space-x-2">
                 <span className="font-medium">{param.name}</span>
@@ -43,11 +63,11 @@ export const ParameterDescriptionDialog = ({
                 <Textarea
                   id={`param-${index}`}
                   placeholder={`Describe what ${param.name} is used for...`}
-                  value={param.description}
+                  value={localParameters[index].description}
                   onChange={(e) => {
-                    const updatedParams = [...parameters];
+                    const updatedParams = [...localParameters];
                     updatedParams[index].description = e.target.value;
-                    onParametersChange(updatedParams);
+                    setLocalParameters(updatedParams);
                   }}
                   className="min-h-[100px]"
                 />
@@ -55,6 +75,14 @@ export const ParameterDescriptionDialog = ({
             </div>
           ))}
         </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleApply}>
+            Apply Changes
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
