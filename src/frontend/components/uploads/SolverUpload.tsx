@@ -82,25 +82,25 @@ export const SolverUpload = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     if (!session?.user?.email) {
       toast.error("You must be logged in to upload solvers");
       return;
     }
-
+  
     if (!file || !description) {
       toast.error("Please provide both a file and description");
       return;
     }
-
+  
     const missingDescriptions = parameters.some(param => !param.description);
     if (missingDescriptions) {
       toast.error("Please provide descriptions for all parameters");
       return;
     }
-
+  
     setIsProcessing(true);
-
+  
     try {
       const fileExt = file.name.split('.').pop();
       const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -108,13 +108,13 @@ export const SolverUpload = () => {
       const { error: uploadError } = await supabase.storage
         .from('solvers')
         .upload(filePath, file);
-
+  
       if (uploadError) {
         toast.error("Failed to upload file to storage");
         console.error(uploadError);
         return;
       }
-
+  
       const { error: dbError } = await supabase
         .from('solvers')
         .insert({
@@ -126,15 +126,16 @@ export const SolverUpload = () => {
             outputs: []
           },
           paper_link: paperLink || null,
-          user_id: session.user.id
+          user_id: session.user.id,
+          email: session.user.email, // Add the email field here
         });
-
+  
       if (dbError) {
         toast.error("Failed to save solver metadata");
         console.error(dbError);
         return;
       }
-
+  
       toast.success("Solver uploaded successfully!");
       setFile(null);
       setDescription("");
@@ -148,6 +149,7 @@ export const SolverUpload = () => {
       setIsProcessing(false);
     }
   };
+  
 
   return (
     <div className="space-y-8">
