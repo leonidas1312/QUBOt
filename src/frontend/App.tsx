@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { supabase } from "@/integrations/supabase/client"
 import { useEffect } from "react"
+import { UserCircle } from "lucide-react"
 import Index from "./pages/Index"
 import Login from "./pages/Login"
 import Solvers from "./pages/Solvers"
@@ -48,22 +49,34 @@ const UserMenu = () => {
   
   if (!session?.user) return null
 
+  const avatarUrl = session.user.user_metadata?.avatar_url
+  const email = session.user.email
+  const initial = email ? email.charAt(0).toUpperCase() : 'U'
+
   return (
     <div className="absolute top-4 right-4 z-50">
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Avatar>
-            <AvatarImage src={session.user.user_metadata.avatar_url} />
-            <AvatarFallback>
-              {session.user.email?.charAt(0).toUpperCase()}
-            </AvatarFallback>
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt="User avatar" />
+            ) : (
+              <AvatarFallback>
+                <UserCircle className="h-6 w-6" />
+              </AvatarFallback>
+            )}
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => navigate('/profile')}>
             View Profile
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => supabase.auth.signOut()}>
+          <DropdownMenuItem 
+            onClick={async () => {
+              await supabase.auth.signOut()
+              navigate('/')
+            }}
+          >
             Sign Out
           </DropdownMenuItem>
         </DropdownMenuContent>
