@@ -40,30 +40,36 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          email: string | null
           file_path: string
           format: string | null
           id: string
           name: string
+          paper_link: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
+          email?: string | null
           file_path: string
           format?: string | null
           id?: string
           name: string
+          paper_link?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
+          email?: string | null
           file_path?: string
           format?: string | null
           id?: string
           name?: string
+          paper_link?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -258,6 +264,7 @@ export type Database = {
           file_path: string
           id: string
           name: string
+          paper_link: string | null
           solver_parameters: Json | null
           updated_at: string
           user_id: string | null
@@ -268,6 +275,7 @@ export type Database = {
           file_path: string
           id?: string
           name: string
+          paper_link?: string | null
           solver_parameters?: Json | null
           updated_at?: string
           user_id?: string | null
@@ -278,6 +286,7 @@ export type Database = {
           file_path?: string
           id?: string
           name?: string
+          paper_link?: string | null
           solver_parameters?: Json | null
           updated_at?: string
           user_id?: string | null
