@@ -3,48 +3,42 @@ import { Card } from "/components/ui/card";
 import { Button } from "/components/ui/button";
 import { Input } from "/components/ui/input";
 import { Textarea } from "/components/ui/textarea";
-import { toast } from "sonner";
 import { FileUploadZone } from "./FileUploadZone";
-import { OptimizationParameters } from "./OptimizationParameters";
 
 interface FileUploadFormProps {
+  title: string;
+  description: string;
+  acceptedFileType: string;
+  fileExtension: string;
   onSubmit: (formData: FormData) => Promise<void>;
   isProcessing: boolean;
+  showPaperLink?: boolean;
 }
 
-export const FileUploadForm = ({ onSubmit, isProcessing }: FileUploadFormProps) => {
+export const FileUploadForm = ({
+  title,
+  description,
+  acceptedFileType,
+  fileExtension,
+  onSubmit,
+  isProcessing,
+  showPaperLink = false,
+}: FileUploadFormProps) => {
   const [file, setFile] = useState<File | null>(null);
-  const [description, setDescription] = useState("");
-  const [email, setEmail] = useState("");
+  const [fileDescription, setFileDescription] = useState("");
   const [paperLink, setPaperLink] = useState("");
-  const [parameters, setParameters] = useState({
-    num_layers: 4,
-    max_iters: 10,
-    nbitstrings: 10,
-    opt_time: 10,
-    rl_time: 10,
-    initial_temperature: 1.0
-  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (!selectedFile.name.endsWith('.npy')) {
-        toast.error("Please upload a .npy file");
+      if (!selectedFile.name.endsWith(fileExtension)) {
+        toast.error(`Please upload a ${fileExtension} file`);
         return;
       }
       setFile(selectedFile);
       toast.success("File selected successfully!");
     }
-  };
-
-  const handleParameterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setParameters(prev => ({
-      ...prev,
-      [name]: parseFloat(value)
-    }));
   };
 
   const handleChooseFile = () => {
@@ -54,29 +48,25 @@ export const FileUploadForm = ({ onSubmit, isProcessing }: FileUploadFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!file || !description || !email) {
-      toast.error("Please provide a file, description, and email");
+    if (!file || !fileDescription) {
+      toast.error("Please provide both a file and description");
       return;
     }
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("description", description);
-    formData.append("email", email);
-    if (paperLink) formData.append("paper_link", paperLink);
-    Object.entries(parameters).forEach(([key, value]) => {
-      formData.append(key, value.toString());
-    });
+    formData.append("description", fileDescription);
+    if (showPaperLink && paperLink) {
+      formData.append("paper_link", paperLink);
+    }
 
     try {
       await onSubmit(formData);
       setFile(null);
-      setDescription("");
-      setEmail("");
+      setFileDescription("");
       setPaperLink("");
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to upload file");
     }
   };
 
@@ -84,50 +74,37 @@ export const FileUploadForm = ({ onSubmit, isProcessing }: FileUploadFormProps) 
     <Card className="p-6 w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Upload QUBO Matrix</h3>
-          <p className="text-sm text-muted-foreground">
-            Please upload your .npy file containing the QUBO matrix
-          </p>
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
 
         <FileUploadZone
           file={file}
-          acceptedFileType=".npy"
+          acceptedFileType={acceptedFileType}
           onFileSelect={handleChooseFile}
           fileInputRef={fileInputRef}
           handleFileChange={handleFileChange}
         />
 
-        <Input
-          type="email"
-          placeholder="Your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-
-        <Input
-          type="url"
-          placeholder="Link to related paper (optional)"
-          value={paperLink}
-          onChange={(e) => setPaperLink(e.target.value)}
-        />
+        {showPaperLink && (
+          <Input
+            type="url"
+            placeholder="Link to related paper (optional)"
+            value={paperLink}
+            onChange={(e) => setPaperLink(e.target.value)}
+          />
+        )}
 
         <Textarea
-          placeholder="Describe what this QUBO matrix represents..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description..."
+          value={fileDescription}
+          onChange={(e) => setFileDescription(e.target.value)}
           className="min-h-[100px]"
           required
         />
 
-        <OptimizationParameters
-          parameters={parameters}
-          onParameterChange={handleParameterChange}
-        />
-
         <Button type="submit" className="w-full" disabled={isProcessing}>
-          {isProcessing ? "Processing..." : "Process Matrix"}
+          {isProcessing ? "Processing..." : "Upload"}
         </Button>
       </form>
     </Card>

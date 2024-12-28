@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { FileUploadZone } from "./FileUploadZone";
 import { supabase } from "@/integrations/supabase/client";
 import { ItemGrid } from "./ItemGrid";
+import { useSession } from "@supabase/auth-helpers-react";
 
 interface Parameter {
   name: string;
@@ -18,10 +19,12 @@ interface Parameter {
 export const SolverUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const [paperLink, setPaperLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [parameters, setParameters] = useState<Parameter[]>([]);
   const [solvers, setSolvers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const session = useSession();
 
   useEffect(() => {
     fetchSolvers();
@@ -62,7 +65,7 @@ export const SolverUpload = () => {
             type: type || 'any',
             description: ''
           };
-        }).filter(param => param.name); // Filter out empty parameters
+        }).filter(param => param.name);
         setParameters(params);
         toast.success("Parameters extracted successfully!");
       } else {
@@ -80,12 +83,16 @@ export const SolverUpload = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!session?.user?.email) {
+      toast.error("You must be logged in to upload solvers");
+      return;
+    }
+
     if (!file || !description) {
       toast.error("Please provide both a file and description");
       return;
     }
 
-    // Validate that all parameters have descriptions
     const missingDescriptions = parameters.some(param => !param.description);
     if (missingDescriptions) {
       toast.error("Please provide descriptions for all parameters");
@@ -117,7 +124,9 @@ export const SolverUpload = () => {
           solver_parameters: {
             inputs: parameters,
             outputs: []
-          }
+          },
+          paper_link: paperLink || null,
+          user_id: session.user.id
         });
 
       if (dbError) {
@@ -129,6 +138,7 @@ export const SolverUpload = () => {
       toast.success("Solver uploaded successfully!");
       setFile(null);
       setDescription("");
+      setPaperLink("");
       setParameters([]);
       fetchSolvers();
     } catch (error) {
@@ -156,6 +166,13 @@ export const SolverUpload = () => {
             onFileSelect={handleChooseFile}
             fileInputRef={fileInputRef}
             handleFileChange={handleFileChange}
+          />
+
+          <Input
+            type="url"
+            placeholder="Link to related paper (optional)"
+            value={paperLink}
+            onChange={(e) => setPaperLink(e.target.value)}
           />
 
           <Textarea
