@@ -1,13 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "/components/ui/card";
 import { ScrollArea } from "/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import { Heart } from "lucide-react";
+import { Heart, Link as LinkIcon } from "lucide-react";
 import { Button } from "/components/ui/button";
 import { useSession } from "@supabase/auth-helpers-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLikedSolvers } from "@/hooks/useLikedSolvers";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "/components/ui/hover-card";
 
 interface ItemGridProps {
   items: any[];
@@ -69,7 +70,19 @@ export const ItemGrid = ({ items, type }: ItemGridProps) => {
             <CardHeader className="relative">
               <CardTitle className="text-xl font-bold truncate">{item.name}</CardTitle>
               <CardDescription className="text-sm text-gray-600">
-                Created by {item.email || "Unknown"} {formatDistanceToNow(new Date(item.created_at))} ago
+                {item.email ? (
+                  <HoverCard>
+                    <HoverCardTrigger className="cursor-pointer">
+                      Created by {item.email.split('@')[0]}
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-auto">
+                      <p>{item.email}</p>
+                    </HoverCardContent>
+                  </HoverCard>
+                ) : (
+                  "Created by Unknown"
+                )}
+                {" "}{formatDistanceToNow(new Date(item.created_at))} ago
               </CardDescription>
               {type === 'solver' && (
                 <Button
@@ -85,9 +98,24 @@ export const ItemGrid = ({ items, type }: ItemGridProps) => {
               )}
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-700 line-clamp-3">
+              <p className="text-sm text-gray-700 line-clamp-3 mb-4">
                 {item.description || "No description provided"}
               </p>
+              
+              {item.paper_link && (
+                <div className="flex items-center gap-2 mb-4">
+                  <LinkIcon className="h-4 w-4" />
+                  <a 
+                    href={item.paper_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline truncate"
+                  >
+                    Related Paper
+                  </a>
+                </div>
+              )}
+
               {type === 'solver' && item.solver_parameters?.inputs && (
                 <div className="mt-4">
                   <h4 className="text-sm font-semibold mb-2">Input Parameters:</h4>
