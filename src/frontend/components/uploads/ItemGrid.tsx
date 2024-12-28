@@ -1,6 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "/components/ui/card";
 import { ScrollArea } from "/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
+import { Heart } from "lucide-react";
+import { Button } from "/components/ui/button";
+import { useSession } from "@supabase/auth-helpers-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useLikedSolvers } from "@/hooks/useLikedSolvers";
 
 interface ItemGridProps {
   items: any[];
@@ -8,6 +15,46 @@ interface ItemGridProps {
 }
 
 export const ItemGrid = ({ items, type }: ItemGridProps) => {
+  const session = useSession();
+  const { likedSolvers, setLikedSolvers } = useLikedSolvers();
+
+  const handleLike = async (solverId: string) => {
+    if (!session?.user) {
+      toast.error("Please login to like solvers");
+      return;
+    }
+
+    try {
+      if (likedSolvers.includes(solverId)) {
+        // Unlike
+        const { error } = await supabase
+          .from('solver_likes')
+          .delete()
+          .eq('solver_id', solverId)
+          .eq('user_id', session.user.id);
+
+        if (error) throw error;
+        setLikedSolvers(prev => prev.filter(id => id !== solverId));
+        toast.success("Solver unliked");
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('solver_likes')
+          .insert({
+            solver_id: solverId,
+            user_id: session.user.id
+          });
+
+        if (error) throw error;
+        setLikedSolvers(prev => [...prev, solverId]);
+        toast.success("Solver liked");
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error("Failed to update like status");
+    }
+  };
+
   return (
     <ScrollArea className="h-[calc(100vh-16rem)] w-full rounded-md border p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
@@ -19,11 +66,23 @@ export const ItemGrid = ({ items, type }: ItemGridProps) => {
               background: "linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%)"
             }}
           >
-            <CardHeader>
+            <CardHeader className="relative">
               <CardTitle className="text-xl font-bold truncate">{item.name}</CardTitle>
               <CardDescription className="text-sm text-gray-600">
-                Created {formatDistanceToNow(new Date(item.created_at))} ago
+                Created by {item.email || "Unknown"} {formatDistanceToNow(new Date(item.created_at))} ago
               </CardDescription>
+              {type === 'solver' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4"
+                  onClick={() => handleLike(item.id)}
+                >
+                  <Heart 
+                    className={likedSolvers.includes(item.id) ? "fill-red-500 text-red-500" : ""}
+                  />
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-700 line-clamp-3">

@@ -138,6 +138,35 @@ export type Database = {
         }
         Relationships: []
       }
+      solver_likes: {
+        Row: {
+          created_at: string
+          id: string
+          solver_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          solver_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          solver_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solver_likes_solver_id_fkey"
+            columns: ["solver_id"]
+            isOneToOne: false
+            referencedRelation: "solvers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solvers: {
         Row: {
           created_at: string
