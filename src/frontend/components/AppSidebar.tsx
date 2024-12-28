@@ -1,5 +1,6 @@
-import { Home, LogIn, Database, Box, Users, Terminal } from "lucide-react"
+import { Home, LogIn, Database, Box, Users, Terminal, User } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useSession } from "@supabase/auth-helpers-react"
 import {
   Sidebar,
   SidebarContent,
@@ -9,8 +10,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 const items = [
@@ -23,6 +22,7 @@ const items = [
     title: "Login",
     icon: LogIn,
     url: "/login",
+    hideWhenAuth: true,
   },
   {
     title: "Solvers",
@@ -38,16 +38,31 @@ const items = [
     title: "Playground",
     icon: Terminal,
     url: "/playground",
+    requireAuth: true,
   },
   {
     title: "Community",
     icon: Users,
     url: "/community",
   },
+  {
+    title: "Profile",
+    icon: User,
+    url: "/profile",
+    requireAuth: true,
+  },
 ]
 
 export function AppSidebar() {
   const navigate = useNavigate()
+  const session = useSession()
+
+  const filteredItems = items.filter(item => {
+    if (session) {
+      return !item.hideWhenAuth
+    }
+    return !item.requireAuth
+  })
 
   return (
     <Sidebar>
@@ -56,7 +71,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton onClick={() => navigate(item.url)}>
                     <item.icon />
