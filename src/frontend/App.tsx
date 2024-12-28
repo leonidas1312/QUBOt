@@ -2,7 +2,7 @@ import { Toaster } from "/components/ui/toaster"
 import { Toaster as Sonner } from "/components/ui/sonner"
 import { TooltipProvider } from "/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { useSession } from "@supabase/auth-helpers-react"
@@ -13,8 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
+import { useEffect } from "react"
 import Index from "./pages/Index"
 import Login from "./pages/Login"
 import Solvers from "./pages/Solvers"
@@ -27,9 +27,16 @@ const queryClient = new QueryClient()
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const session = useSession()
+  const navigate = useNavigate()
   
+  useEffect(() => {
+    if (!session) {
+      navigate('/login')
+    }
+  }, [session, navigate])
+
   if (!session) {
-    return <Navigate to="/login" replace />
+    return null
   }
 
   return <>{children}</>
@@ -39,7 +46,7 @@ const UserMenu = () => {
   const session = useSession()
   const navigate = useNavigate()
   
-  if (!session) return null
+  if (!session?.user) return null
 
   return (
     <div className="absolute top-4 right-4 z-50">
@@ -65,46 +72,69 @@ const UserMenu = () => {
   )
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SidebarProvider>
-          <div className="flex min-h-screen w-full">
-            <AppSidebar />
-            <UserMenu />
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/solvers" element={<Solvers />} />
-                <Route path="/datasets" element={<Datasets />} />
-                <Route 
-                  path="/playground" 
-                  element={
-                    <ProtectedRoute>
-                      <Playground />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/community" element={<Community />} />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Routes>
-            </main>
-          </div>
-        </SidebarProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-)
+const App = () => {
+  const session = useSession()
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        console.log('User signed in:', session?.user?.id)
+      }
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider>
+            <div className="flex min-h-screen w-full">
+              <AppSidebar />
+              <UserMenu />
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route 
+                    path="/login" 
+                    element={
+                      session ? <Navigate to="/playground" replace /> : <Login />
+                    } 
+                  />
+                  <Route path="/solvers" element={<Solvers />} />
+                  <Route path="/datasets" element={<Datasets />} />
+                  <Route 
+                    path="/playground" 
+                    element={
+                      <ProtectedRoute>
+                        <Playground />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route path="/community" element={<Community />} />
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Routes>
+              </main>
+            </div>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  )
+}
 
 export default App
