@@ -11,9 +11,11 @@ import { SolverGuidelines } from "./SolverGuidelines";
 import { Parameter, extractParameters, extractOutputs } from "./solverUtils";
 import { validateGuidelines } from "./guidelineValidation";
 import { ParameterDescriptionDialog } from "./ParameterDescriptionDialog";
+import { Shuffle, Plus, Info } from "lucide-react";
 
 export const SolverUpload = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [solverName, setSolverName] = useState("");
   const [description, setDescription] = useState("");
   const [paperLink, setPaperLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -25,6 +27,15 @@ export const SolverUpload = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const session = useSession();
 
+  const generateRandomName = () => {
+    const adjectives = ['Quantum', 'Neural', 'Adaptive', 'Dynamic', 'Hybrid', 'Advanced', 'Optimized'];
+    const nouns = ['Solver', 'Optimizer', 'Engine', 'System', 'Framework', 'Algorithm'];
+    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    const randomNumber = Math.floor(Math.random() * 1000);
+    setSolverName(`${randomAdjective}${randomNoun}${randomNumber}`);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile || !selectedFile.name.endsWith(".py")) {
@@ -33,6 +44,9 @@ export const SolverUpload = () => {
     }
 
     setFile(selectedFile);
+    if (!solverName) {
+      setSolverName(selectedFile.name.replace('.py', ''));
+    }
 
     try {
       const content = await selectedFile.text();
@@ -48,19 +62,7 @@ export const SolverUpload = () => {
       setInputs(detectedParams);
       setOutputs(detectedOutputs);
 
-      if (detectedParams.length > 0) {
-        setShowInputDialog(true);
-      }
-      if (detectedOutputs.length > 0) {
-        // Will show after input dialog is closed
-        setTimeout(() => setShowOutputDialog(true), 500);
-      }
-
-      if (detectedParams.length > 0 || detectedOutputs.length > 0) {
-        toast.success("Parameters and outputs detected successfully!");
-      } else {
-        toast.warning("No parameters or outputs detected in the file.");
-      }
+      toast.success("File uploaded successfully!");
     } catch (error) {
       console.error("Error reading file:", error);
       toast.error("Failed to read the file.");
@@ -75,8 +77,8 @@ export const SolverUpload = () => {
       return;
     }
 
-    if (!file || !description) {
-      toast.error("Please provide both a file and description.");
+    if (!file || !description || !solverName) {
+      toast.error("Please provide a file, name, and description.");
       return;
     }
 
@@ -101,7 +103,7 @@ export const SolverUpload = () => {
       const { error: dbError } = await supabase
         .from("solvers")
         .insert({
-          name: file.name,
+          name: solverName,
           description,
           file_path: filePath,
           solver_parameters: inputs,
@@ -115,6 +117,7 @@ export const SolverUpload = () => {
 
       toast.success("Solver uploaded successfully!");
       setFile(null);
+      setSolverName("");
       setDescription("");
       setPaperLink("");
       setInputs([]);
@@ -145,6 +148,24 @@ export const SolverUpload = () => {
             handleFileChange={handleFileChange}
           />
 
+          <div className="flex gap-4 items-center">
+            <Input
+              placeholder="Solver name"
+              value={solverName}
+              onChange={(e) => setSolverName(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={generateRandomName}
+              className="whitespace-nowrap"
+            >
+              <Shuffle className="w-4 h-4 mr-2" />
+              Random Name
+            </Button>
+          </div>
+
           <Input
             type="url"
             placeholder="Link to related paper (optional)"
@@ -158,6 +179,31 @@ export const SolverUpload = () => {
             onChange={(e) => setDescription(e.target.value)}
             className="min-h-[100px]"
           />
+
+          {file && (
+            <div className="flex flex-wrap gap-4">
+              {inputs.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowInputDialog(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Configure Input Parameters ({inputs.length})
+                </Button>
+              )}
+              {outputs.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowOutputDialog(true)}
+                >
+                  <Info className="w-4 h-4 mr-2" />
+                  Configure Output Parameters ({outputs.length})
+                </Button>
+              )}
+            </div>
+          )}
 
           <SolverGuidelines validation={guidelineValidation} />
 
@@ -173,15 +219,10 @@ export const SolverUpload = () => {
 
       <ParameterDescriptionDialog
         isOpen={showInputDialog}
-        onClose={() => {
-          setShowInputDialog(false);
-          if (outputs.length > 0) {
-            setShowOutputDialog(true);
-          }
-        }}
+        onClose={() => setShowInputDialog(false)}
         parameters={inputs}
         onParametersChange={setInputs}
-        title="Describe Input Parameters"
+        title="Configure Input Parameters"
       />
 
       <ParameterDescriptionDialog
@@ -189,7 +230,7 @@ export const SolverUpload = () => {
         onClose={() => setShowOutputDialog(false)}
         parameters={outputs}
         onParametersChange={setOutputs}
-        title="Describe Output Parameters"
+        title="Configure Output Parameters"
       />
     </div>
   );
