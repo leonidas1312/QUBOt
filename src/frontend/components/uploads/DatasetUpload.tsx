@@ -93,10 +93,7 @@ export const DatasetUpload = () => {
         showPaperLink
       />
 
-      <div className="w-full">
-        <h2 className="text-2xl font-bold mb-6">Available Datasets</h2>
-        <ItemGrid items={datasets} type="dataset" />
-      </div>
+      
     </div>
   );
 };

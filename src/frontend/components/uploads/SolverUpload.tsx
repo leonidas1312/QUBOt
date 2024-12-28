@@ -1,3 +1,4 @@
+// SolverUpload.tsx
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ItemGrid } from "./ItemGrid";
 import { useSession } from "@supabase/auth-helpers-react";
 import { SolverGuidelines } from "./SolverGuidelines";
-
-interface Parameter {
-  name: string;
-  type: string;
-  description: string;
-}
+import { Parameter, extractParameters, extractOutputs } from "./solverUtils";
 
 export const SolverUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -23,92 +19,16 @@ export const SolverUpload = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [inputs, setInputs] = useState<Parameter[]>([]);
   const [outputs, setOutputs] = useState<Parameter[]>([]);
+  const [solvers, setSolvers] = useState<any[]>([]);
   const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const session = useSession();
 
-  const extractParameters = (content: string): Parameter[] => {
-    const funcMatch = content.match(/def\s+solve\s*\(([^)]*)\)/);
-    if (!funcMatch) {
-      toast.error("No `solve` function found in the file.");
-      return [];
-    }
-
-    const paramsString = funcMatch[1];
-    const params = paramsString.split(",").map((param) => {
-      const [nameAndType, defaultValue] = param.split("=").map((p) => p.trim());
-      const [name, type] = nameAndType.split(":").map((p) => p.trim());
-
-      // Only include parameters without default values
-      if (!defaultValue) {
-        return {
-          name,
-          type: type || "any",
-          description: "",
-        };
-      }
-      return null;
-    }).filter(Boolean) as Parameter[];
-
-    return params;
-  };
-
-  const extractOutputs = (content: string): Parameter[] => {
-    const funcMatch = content.match(/def\s+solve\s*\([^)]*\):([\s\S]*)/);
-    if (!funcMatch) {
-      toast.error("No `solve` function found in the file.");
-      return [];
-    }
-
-    let solveBody = funcMatch[1];
-    solveBody = solveBody.replace(/(""".*?"""|'''.*?''')/gs, "");
-    solveBody = solveBody.replace(/#.*$/gm, "");
-
-    const returnMatch = solveBody.match(/return\s+(.+)/);
-    if (!returnMatch) {
-      toast.warning("No `return` statement found in the `solve` function.");
-      return [];
-    }
-
-    let returnStatement = returnMatch[1].trim();
-    returnStatement = returnStatement.replace(/^\(([\s\S]*)\)$/, "$1").trim();
-    const returnVariables = splitReturnVariables(returnStatement);
-
-    return returnVariables.map((variable) => ({
-      name: variable,
-      type: "any",
-      description: `Output for ${variable}`,
-    }));
-  };
-
-  const splitReturnVariables = (returnStr: string): string[] => {
-    const variables: string[] = [];
-    let currentVar = "";
-    let bracketDepth = 0;
-
-    for (let char of returnStr) {
-      if (char === "," && bracketDepth === 0) {
-        if (currentVar.trim()) {
-          variables.push(currentVar.trim());
-          currentVar = "";
-        }
-      } else {
-        if (char === "(" || char === "[" || char === "{") {
-          bracketDepth++;
-        } else if (char === ")" || char === "]" || char === "}") {
-          bracketDepth--;
-        }
-        currentVar += char;
-      }
-    }
-
-    if (currentVar.trim()) {
-      variables.push(currentVar.trim());
-    }
-
-    return variables;
-  };
-
+  /**
+   * Handles the change event when a file is selected.
+   * It reads the file content and extracts input and output parameters.
+   * @param e - The change event from the file input.
+   */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile || !selectedFile.name.endsWith(".py")) {
@@ -137,6 +57,11 @@ export const SolverUpload = () => {
     }
   };
 
+  /**
+   * Handles the form submission to upload the solver.
+   * It uploads the file to Supabase Storage and inserts the solver metadata into the database.
+   * @param e - The form submission event.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -168,8 +93,8 @@ export const SolverUpload = () => {
           name: file.name,
           description,
           file_path: filePath,
-          solver_parameters: inputs,
-          solver_outputs: outputs,
+          solver_parameters: inputs, // Stored as an array
+          solver_outputs: outputs,    // Stored as an array
           paper_link: paperLink || null,
           user_id: session.user.id,
           email: session.user.email,
@@ -226,6 +151,63 @@ export const SolverUpload = () => {
                 className="min-h-[100px]"
               />
 
+              {inputs.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold">Detected Parameters:</h4>
+                  {inputs.map((param, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{param.name}</span>
+                        {param.type !== "any" && (
+                          <span className="text-muted-foreground">({param.type})</span>
+                        )}
+                        {param.default_value && (
+                          <span className="text-muted-foreground">
+                            Default: {param.default_value}
+                          </span>
+                        )}
+                      </div>
+                      <Textarea
+                        placeholder={`Describe what ${param.name} is used for...`}
+                        value={param.description}
+                        onChange={(e) => {
+                          const updatedInputs = [...inputs];
+                          updatedInputs[index].description = e.target.value;
+                          setInputs(updatedInputs);
+                        }}
+                        className="min-h-[60px]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {outputs.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold">Detected Outputs:</h4>
+                  {outputs.map((output, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{output.name}</span>
+                        {output.type !== "any" && (
+                          <span className="text-muted-foreground">({output.type})</span>
+                        )}
+                      </div>
+                      <Textarea
+                        placeholder={`Describe what ${output.name} is used for...`}
+                        value={output.description}
+                        onChange={(e) => {
+                          const updatedOutputs = [...outputs];
+                          updatedOutputs[index].description = e.target.value;
+                          setOutputs(updatedOutputs);
+                        }}
+                        className="min-h-[60px]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Button type="submit" className="w-full" disabled={isProcessing}>
                 {isProcessing ? "Uploading..." : "Upload Solver"}
               </Button>
@@ -234,10 +216,7 @@ export const SolverUpload = () => {
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="text-2xl font-bold mb-6">Available Solvers</h2>
-        <ItemGrid items={[]} type="solver" />
-      </div>
+      
     </div>
   );
 };
