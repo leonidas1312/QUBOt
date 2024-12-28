@@ -1,19 +1,14 @@
 import { useState, useEffect } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { SolverExample } from "./SolverExample";
 import type { GuidelineValidation } from "./guidelineValidation";
 
 interface SolverGuidelinesProps {
-  onGuidelinesAccepted: (accepted: boolean) => void;
   validation?: GuidelineValidation;
 }
 
-export const SolverGuidelines = ({ 
-  onGuidelinesAccepted, 
-  validation 
-}: SolverGuidelinesProps) => {
+export const SolverGuidelines = ({ validation }: SolverGuidelinesProps) => {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({
     entryPoint: false,
     returnStatement: false,
@@ -37,63 +32,59 @@ export const SolverGuidelines = ({
         }
       };
       animateChecks();
+    } else {
+      // Reset when validation is null (new file upload)
+      setCheckedItems({
+        entryPoint: false,
+        returnStatement: false,
+        nestedFunctions: false,
+      });
     }
   }, [validation]);
 
-  useEffect(() => {
-    const allChecked = Object.values(checkedItems).every(value => value);
-    onGuidelinesAccepted(allChecked);
-  }, [checkedItems, onGuidelinesAccepted]);
-
   return (
-    <Card className="p-6 space-y-6">
-      <h3 className="text-lg font-semibold">Solver Guidelines</h3>
+    <div className="space-y-6">
+      <h4 className="text-sm font-semibold">Solver Guidelines</h4>
       <p className="text-sm text-muted-foreground">
-        Before uploading your solver, please ensure it meets the following requirements:
+        Your solver must meet these requirements:
       </p>
 
       <div className="space-y-4">
         <div className="flex items-start space-x-2">
-          <Checkbox
-            id="entryPoint"
-            checked={checkedItems.entryPoint}
-            disabled={!!validation}
-          />
+          <div className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors ${
+            checkedItems.entryPoint ? 'bg-primary border-primary' : 'border-input'
+          }`}>
+            {checkedItems.entryPoint && <Check className="h-4 w-4 text-primary-foreground" />}
+          </div>
           <div className="grid gap-1.5 leading-none">
-            <Label htmlFor="entryPoint">
-              Must use a solve function as the main entry point
-            </Label>
+            <Label>Must use a solve function as the main entry point</Label>
           </div>
         </div>
 
         <div className="flex items-start space-x-2">
-          <Checkbox
-            id="returnStatement"
-            checked={checkedItems.returnStatement}
-            disabled={!!validation}
-          />
+          <div className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors ${
+            checkedItems.returnStatement ? 'bg-primary border-primary' : 'border-input'
+          }`}>
+            {checkedItems.returnStatement && <Check className="h-4 w-4 text-primary-foreground" />}
+          </div>
           <div className="grid gap-1.5 leading-none">
-            <Label htmlFor="returnStatement">
-              Must have a return statement with outputs
-            </Label>
+            <Label>Must have a return statement with outputs</Label>
           </div>
         </div>
 
         <div className="flex items-start space-x-2">
-          <Checkbox
-            id="nestedFunctions"
-            checked={checkedItems.nestedFunctions}
-            disabled={!!validation}
-          />
+          <div className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors ${
+            checkedItems.nestedFunctions ? 'bg-primary border-primary' : 'border-input'
+          }`}>
+            {checkedItems.nestedFunctions && <Check className="h-4 w-4 text-primary-foreground" />}
+          </div>
           <div className="grid gap-1.5 leading-none">
-            <Label htmlFor="nestedFunctions">
-              Must not have nested functions inside the solve function
-            </Label>
+            <Label>Must not have nested functions inside the solve function</Label>
           </div>
         </div>
       </div>
 
       <SolverExample />
-    </Card>
+    </div>
   );
 };

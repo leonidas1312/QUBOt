@@ -19,7 +19,6 @@ export const SolverUpload = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [inputs, setInputs] = useState<Parameter[]>([]);
   const [outputs, setOutputs] = useState<Parameter[]>([]);
-  const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
   const [guidelineValidation, setGuidelineValidation] = useState(null);
   const [showInputDialog, setShowInputDialog] = useState(false);
   const [showOutputDialog, setShowOutputDialog] = useState(false);
@@ -81,6 +80,12 @@ export const SolverUpload = () => {
       return;
     }
 
+    // Check if guidelines are met
+    if (!guidelineValidation || !Object.values(guidelineValidation).every(Boolean)) {
+      toast.error("Your solver must meet all guidelines before uploading.");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -99,8 +104,8 @@ export const SolverUpload = () => {
           name: file.name,
           description,
           file_path: filePath,
-          solver_parameters: inputs, // Stored as an array
-          solver_outputs: outputs,    // Stored as an array
+          solver_parameters: inputs,
+          solver_outputs: outputs,
           paper_link: paperLink || null,
           user_id: session.user.id,
           email: session.user.email,
@@ -114,6 +119,7 @@ export const SolverUpload = () => {
       setPaperLink("");
       setInputs([]);
       setOutputs([]);
+      setGuidelineValidation(null);
     } catch (error) {
       console.error("Error uploading solver:", error);
       toast.error("Failed to upload solver.");
@@ -124,49 +130,46 @@ export const SolverUpload = () => {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SolverGuidelines 
-          onGuidelinesAccepted={setGuidelinesAccepted} 
-          validation={guidelineValidation}
-        />
+      <Card className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <h3 className="text-lg font-semibold">Upload Solver</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload your `.py` file containing the solver algorithm.
+          </p>
 
-        <div className={`transition-opacity duration-300 ${guidelinesAccepted ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-          <Card className="p-6 h-full">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <h3 className="text-lg font-semibold">Upload Solver</h3>
-              <p className="text-sm text-muted-foreground">
-                Upload your `.py` file containing the solver algorithm.
-              </p>
+          <FileUploadZone
+            file={file}
+            acceptedFileType=".py"
+            onFileSelect={() => fileInputRef.current?.click()}
+            fileInputRef={fileInputRef}
+            handleFileChange={handleFileChange}
+          />
 
-              <FileUploadZone
-                file={file}
-                acceptedFileType=".py"
-                onFileSelect={() => fileInputRef.current?.click()}
-                fileInputRef={fileInputRef}
-                handleFileChange={handleFileChange}
-              />
+          <Input
+            type="url"
+            placeholder="Link to related paper (optional)"
+            value={paperLink}
+            onChange={(e) => setPaperLink(e.target.value)}
+          />
 
-              <Input
-                type="url"
-                placeholder="Link to related paper (optional)"
-                value={paperLink}
-                onChange={(e) => setPaperLink(e.target.value)}
-              />
+          <Textarea
+            placeholder="Describe what this solver does..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="min-h-[100px]"
+          />
 
-              <Textarea
-                placeholder="Describe what this solver does..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
+          <SolverGuidelines validation={guidelineValidation} />
 
-              <Button type="submit" className="w-full" disabled={isProcessing}>
-                {isProcessing ? "Uploading..." : "Upload Solver"}
-              </Button>
-            </form>
-          </Card>
-        </div>
-      </div>
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isProcessing || !guidelineValidation || !Object.values(guidelineValidation).every(Boolean)}
+          >
+            {isProcessing ? "Uploading..." : "Upload Solver"}
+          </Button>
+        </form>
+      </Card>
 
       <ParameterDescriptionDialog
         isOpen={showInputDialog}
