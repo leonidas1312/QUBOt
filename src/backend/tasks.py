@@ -33,7 +33,7 @@ def run_quantum_opt_task(self, task_id, QUBO_matrix, parameters, description):
             initial_temperature=parameters['initial_temperature'],
             progress_callback=sync_progress_callback  # Pass the synchronous callback
         )
-        print("AAAAAAAAAAAAAAA")
+
         # After optimization is complete, prepare the final result
         result = {
             "best_bitstring": best_bitstring.tolist(),
@@ -43,13 +43,12 @@ def run_quantum_opt_task(self, task_id, QUBO_matrix, parameters, description):
             "progress_rl_costs": progress_rl_costs.tolist(),
             "progress_opt_costs": progress_opt_costs.tolist()
         }
-        print(result)
+
         final_data = {
             "final": True,
             "description": description,
             "result": result
         }
-        print(final_data)
 
         # Publish the final result
         redis_client.publish(task_id, json.dumps(final_data))
@@ -62,5 +61,4 @@ def run_quantum_opt_task(self, task_id, QUBO_matrix, parameters, description):
             "error": f"Optimization failed: {str(e)}"
         }
         redis_client.publish(task_id, json.dumps(error_data))
-
         return f"Optimization failed: {str(e)}"
