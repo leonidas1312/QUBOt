@@ -266,6 +266,7 @@ export type Database = {
           id: string
           name: string
           paper_link: string | null
+          solver_outputs: Json | null
           solver_parameters: Json | null
           updated_at: string
           user_id: string | null
@@ -278,6 +279,7 @@ export type Database = {
           id?: string
           name: string
           paper_link?: string | null
+          solver_outputs?: Json | null
           solver_parameters?: Json | null
           updated_at?: string
           user_id?: string | null
@@ -290,6 +292,7 @@ export type Database = {
           id?: string
           name?: string
           paper_link?: string | null
+          solver_outputs?: Json | null
           solver_parameters?: Json | null
           updated_at?: string
           user_id?: string | null

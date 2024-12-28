@@ -3,7 +3,6 @@ import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { OptimizationParameters } from "@/components/uploads/OptimizationParameters";
 import {
   Select,
   SelectContent,
@@ -12,19 +11,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
+interface Parameter {
+  name: string;
+  type: string;
+  description: string;
+}
 
 export const CreateJob = () => {
   const session = useSession();
   const [selectedSolver, setSelectedSolver] = useState<string>("");
   const [selectedDataset, setSelectedDataset] = useState<string>("");
-  const [parameters, setParameters] = useState({
-    num_layers: 2,
-    max_iters: 100,
-    nbitstrings: 10,
-    opt_time: 1.0,
-    rl_time: 1.0,
-    initial_temperature: 1.0,
-  });
+  const [parameters, setParameters] = useState<Record<string, any>>({});
 
   // Fetch available solvers
   const { data: solvers, isLoading: solversLoading } = useQuery({
@@ -60,11 +61,10 @@ export const CreateJob = () => {
     },
   });
 
-  const handleParameterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleParameterChange = (name: string, value: string) => {
     setParameters(prev => ({
       ...prev,
-      [name]: parseFloat(value)
+      [name]: value
     }));
   };
 
@@ -116,93 +116,134 @@ export const CreateJob = () => {
       toast.success("Job created successfully");
       setSelectedSolver("");
       setSelectedDataset("");
+      setParameters({});
     } catch (error) {
       console.error('Error creating job:', error);
       toast.error("Failed to create job");
     }
   };
 
+  const selectedSolverData = solvers?.find(s => s.id === selectedSolver);
+  const solverInputs = selectedSolverData?.solver_parameters?.inputs || [];
+  const solverOutputs = selectedSolverData?.solver_outputs || [];
+
   return (
-    <div className="space-y-4 p-4 bg-white rounded-lg shadow">
-      <h2 className="text-2xl font-bold mb-4">Create New Job</h2>
-      
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Select Dataset</label>
-          <Select
-            value={selectedDataset}
-            onValueChange={setSelectedDataset}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a dataset" />
-            </SelectTrigger>
-            <SelectContent>
-              {datasetsLoading ? (
-                <SelectItem value="loading" disabled>
-                  Loading datasets...
-                </SelectItem>
-              ) : datasets?.length === 0 ? (
-                <SelectItem value="none" disabled>
-                  No datasets available
-                </SelectItem>
-              ) : (
-                datasets?.map((dataset) => (
-                  <SelectItem key={dataset.id} value={dataset.id}>
-                    {dataset.name}
+    <div className="space-y-4">
+      <Card className="p-6">
+        <h2 className="text-2xl font-bold mb-4">Create New Job</h2>
+        
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label>Select Dataset</Label>
+            <Select
+              value={selectedDataset}
+              onValueChange={setSelectedDataset}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a dataset" />
+              </SelectTrigger>
+              <SelectContent>
+                {datasetsLoading ? (
+                  <SelectItem value="loading" disabled>
+                    Loading datasets...
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Select Solver</label>
-          <Select
-            value={selectedSolver}
-            onValueChange={setSelectedSolver}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a solver" />
-            </SelectTrigger>
-            <SelectContent>
-              {solversLoading ? (
-                <SelectItem value="loading" disabled>
-                  Loading solvers...
-                </SelectItem>
-              ) : solvers?.length === 0 ? (
-                <SelectItem value="none" disabled>
-                  No solvers available
-                </SelectItem>
-              ) : (
-                solvers?.map((solver) => (
-                  <SelectItem key={solver.id} value={solver.id}>
-                    {solver.name}
+                ) : datasets?.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No datasets available
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {selectedSolver && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Algorithm Parameters</h3>
-            <OptimizationParameters
-              parameters={parameters}
-              onParameterChange={handleParameterChange}
-            />
+                ) : (
+                  datasets?.map((dataset) => (
+                    <SelectItem key={dataset.id} value={dataset.id}>
+                      {dataset.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
-        )}
-      </div>
 
-      <Button 
-        onClick={handleCreateJob}
-        disabled={!selectedSolver || !selectedDataset || !session?.user}
-        className="w-full mt-4"
-      >
-        Create Job
-      </Button>
+          <div className="space-y-2">
+            <Label>Select Solver</Label>
+            <Select
+              value={selectedSolver}
+              onValueChange={setSelectedSolver}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a solver" />
+              </SelectTrigger>
+              <SelectContent>
+                {solversLoading ? (
+                  <SelectItem value="loading" disabled>
+                    Loading solvers...
+                  </SelectItem>
+                ) : solvers?.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No solvers available
+                  </SelectItem>
+                ) : (
+                  solvers?.map((solver) => (
+                    <SelectItem key={solver.id} value={solver.id}>
+                      {solver.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedSolver && (
+            <>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Algorithm Parameters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {solverInputs.map((param: Parameter) => (
+                    <div key={param.name} className="space-y-2">
+                      <Label htmlFor={param.name}>
+                        {param.name}
+                        <span className="text-sm text-muted-foreground ml-2">
+                          ({param.type})
+                        </span>
+                      </Label>
+                      <Input
+                        id={param.name}
+                        type={param.type === 'number' ? 'number' : 'text'}
+                        value={parameters[param.name] || ''}
+                        onChange={(e) => handleParameterChange(param.name, e.target.value)}
+                        placeholder={param.description}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {solverOutputs.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Expected Outputs</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {solverOutputs.map((output: Parameter) => (
+                      <div key={output.name} className="p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium">{output.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Type: {output.type}
+                        </p>
+                        <p className="text-sm mt-2">{output.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <Button 
+          onClick={handleCreateJob}
+          disabled={!selectedSolver || !selectedDataset || !session?.user}
+          className="w-full mt-6"
+        >
+          Create Job
+        </Button>
+      </Card>
     </div>
   );
 };

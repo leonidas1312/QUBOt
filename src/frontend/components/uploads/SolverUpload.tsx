@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from "react";
-import { Card } from "/components/ui/card";
-import { Button } from "/components/ui/button";
-import { Textarea } from "/components/ui/textarea";
-import { Input } from "/components/ui/input";
-import { Label } from "/components/ui/label";
+import { useState, useRef } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { FileUploadZone } from "./FileUploadZone";
 import { supabase } from "@/integrations/supabase/client";
 import { ItemGrid } from "./ItemGrid";
 import { useSession } from "@supabase/auth-helpers-react";
+import { SolverParameterForm } from "./SolverParameterForm";
 
 interface Parameter {
   name: string;
@@ -21,28 +21,11 @@ export const SolverUpload = () => {
   const [description, setDescription] = useState("");
   const [paperLink, setPaperLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [parameters, setParameters] = useState<Parameter[]>([]);
+  const [inputs, setInputs] = useState<Parameter[]>([]);
+  const [outputs, setOutputs] = useState<Parameter[]>([]);
   const [solvers, setSolvers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const session = useSession();
-
-  useEffect(() => {
-    fetchSolvers();
-  }, []);
-
-  const fetchSolvers = async () => {
-    const { data, error } = await supabase
-      .from('solvers')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast.error("Failed to fetch solvers");
-      return;
-    }
-
-    setSolvers(data || []);
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -53,7 +36,6 @@ export const SolverUpload = () => {
       }
       setFile(selectedFile);
       
-      // Read file content to extract parameters
       const content = await selectedFile.text();
       const paramMatches = content.match(/def\s+solve\s*\(([^)]*)\)/);
       if (paramMatches && paramMatches[1]) {
@@ -66,7 +48,7 @@ export const SolverUpload = () => {
             description: ''
           };
         }).filter(param => param.name);
-        setParameters(params);
+        setInputs(params);
         toast.success("Parameters extracted successfully!");
       } else {
         toast.error("No solve function found in the file");
@@ -74,10 +56,6 @@ export const SolverUpload = () => {
       
       toast.success("File selected successfully!");
     }
-  };
-
-  const handleChooseFile = () => {
-    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,7 +71,7 @@ export const SolverUpload = () => {
       return;
     }
   
-    const missingDescriptions = parameters.some(param => !param.description);
+    const missingDescriptions = [...inputs, ...outputs].some(param => !param.description);
     if (missingDescriptions) {
       toast.error("Please provide descriptions for all parameters");
       return;
@@ -109,11 +87,7 @@ export const SolverUpload = () => {
         .from('solvers')
         .upload(filePath, file);
   
-      if (uploadError) {
-        toast.error("Failed to upload file to storage");
-        console.error(uploadError);
-        return;
-      }
+      if (uploadError) throw uploadError;
   
       const { error: dbError } = await supabase
         .from('solvers')
@@ -121,26 +95,21 @@ export const SolverUpload = () => {
           name: file.name,
           description,
           file_path: filePath,
-          solver_parameters: {
-            inputs: parameters,
-            outputs: []
-          },
+          solver_parameters: { inputs },
+          solver_outputs: outputs,
           paper_link: paperLink || null,
           user_id: session.user.id,
-          email: session.user.email, // Add the email field here
+          email: session.user.email,
         });
   
-      if (dbError) {
-        toast.error("Failed to save solver metadata");
-        console.error(dbError);
-        return;
-      }
+      if (dbError) throw dbError;
   
       toast.success("Solver uploaded successfully!");
       setFile(null);
       setDescription("");
       setPaperLink("");
-      setParameters([]);
+      setInputs([]);
+      setOutputs([]);
       fetchSolvers();
     } catch (error) {
       console.error("Error:", error);
@@ -149,7 +118,6 @@ export const SolverUpload = () => {
       setIsProcessing(false);
     }
   };
-  
 
   return (
     <div className="space-y-8">
@@ -165,7 +133,7 @@ export const SolverUpload = () => {
           <FileUploadZone
             file={file}
             acceptedFileType=".py"
-            onFileSelect={handleChooseFile}
+            onFileSelect={() => fileInputRef.current?.click()}
             fileInputRef={fileInputRef}
             handleFileChange={handleFileChange}
           />
@@ -184,31 +152,19 @@ export const SolverUpload = () => {
             className="min-h-[100px]"
           />
 
-          {parameters.length > 0 && (
-            <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-              <h4 className="text-sm font-semibold">Parameter Descriptions</h4>
-              <p className="text-sm text-muted-foreground">
-                Please provide a description for each parameter of your solver
-              </p>
-              {parameters.map((param, index) => (
-                <div key={index} className="space-y-2 p-4 bg-white rounded-md shadow-sm">
-                  <Label className="font-medium">
-                    {param.name} ({param.type})
-                  </Label>
-                  <Textarea
-                    placeholder={`Describe what ${param.name} is used for...`}
-                    value={param.description}
-                    onChange={(e) => {
-                      const newParams = [...parameters];
-                      newParams[index].description = e.target.value;
-                      setParameters(newParams);
-                    }}
-                    className="min-h-[80px]"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <SolverParameterForm
+            parameters={inputs}
+            onParametersChange={setInputs}
+            title="Input Parameters"
+            description="Define the input parameters for your solver"
+          />
+
+          <SolverParameterForm
+            parameters={outputs}
+            onParametersChange={setOutputs}
+            title="Output Parameters"
+            description="Define what outputs your solver will produce"
+          />
 
           <Button type="submit" className="w-full" disabled={isProcessing}>
             {isProcessing ? "Uploading..." : "Upload Solver"}
