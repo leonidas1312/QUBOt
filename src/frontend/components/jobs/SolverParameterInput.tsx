@@ -15,6 +15,7 @@ interface SolverParameterInputProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  datasetName?: string;  // New prop for dataset name
 }
 
 export const SolverParameterInput = ({
@@ -22,7 +23,16 @@ export const SolverParameterInput = ({
   value,
   onChange,
   disabled = false,
+  datasetName,  // Add the new prop
 }: SolverParameterInputProps) => {
+  // Create placeholder text based on whether it's a qubo_matrix parameter and if there's a dataset
+  const getPlaceholder = () => {
+    if (parameter.name === "qubo_matrix" && datasetName) {
+      return `Linked to dataset: ${datasetName}`;
+    }
+    return parameter.default_value ? `Default: ${parameter.default_value}` : `Enter ${parameter.name}`;
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -47,7 +57,7 @@ export const SolverParameterInput = ({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={parameter.default_value ? `Default: ${parameter.default_value}` : `Enter ${parameter.name}`}
+        placeholder={getPlaceholder()}
         disabled={disabled}
       />
     </div>

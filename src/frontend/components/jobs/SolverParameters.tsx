@@ -12,12 +12,14 @@ interface SolverParametersProps {
   parameters: Record<string, any>;
   solverParameters: SolverParameter[];
   onParameterChange: (paramName: string, value: string) => void;
+  datasetName?: string;  // New prop for dataset name
 }
 
 export const SolverParameters = ({
   parameters,
   solverParameters,
   onParameterChange,
+  datasetName,  // Add the new prop
 }: SolverParametersProps) => {
   return (
     <Card>
@@ -32,6 +34,7 @@ export const SolverParameters = ({
             value={parameters[param.name] || ""}
             onChange={(value) => onParameterChange(param.name, value)}
             disabled={param.name === "qubo_matrix"}
+            datasetName={param.name === "qubo_matrix" ? datasetName : undefined}
           />
         ))}
       </CardContent>

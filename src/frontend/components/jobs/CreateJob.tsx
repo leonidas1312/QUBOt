@@ -29,6 +29,7 @@ export const CreateJob = () => {
   const [selectedSolver, setSelectedSolver] = useState<string>("");
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [currentSolver, setCurrentSolver] = useState<Solver | null>(null);
+  const [selectedDatasetName, setSelectedDatasetName] = useState<string>("");  // New state for dataset name
   const { toast } = useToast();
   const session = useSession();
 
@@ -67,6 +68,12 @@ export const CreateJob = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDatasetChange = (datasetId: string) => {
+    setSelectedDataset(datasetId);
+    const dataset = datasets.find((d) => d.id === datasetId);
+    setSelectedDatasetName(dataset?.name || "");
   };
 
   const handleSolverChange = (solverId: string) => {
@@ -118,6 +125,7 @@ export const CreateJob = () => {
       setSelectedDataset("");
       setSelectedSolver("");
       setParameters({});
+      setSelectedDatasetName("");
     } catch (error) {
       console.error("Error creating job:", error);
       toast({
@@ -135,7 +143,7 @@ export const CreateJob = () => {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label>Dataset</Label>
-          <Select value={selectedDataset} onValueChange={setSelectedDataset}>
+          <Select value={selectedDataset} onValueChange={handleDatasetChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select a dataset" />
             </SelectTrigger>
@@ -173,6 +181,7 @@ export const CreateJob = () => {
                 parameters={parameters}
                 solverParameters={Object.values(currentSolver.solver_parameters)}
                 onParameterChange={handleParameterChange}
+                datasetName={selectedDatasetName}  // Pass the dataset name
               />
             )}
 
