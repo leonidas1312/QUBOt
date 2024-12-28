@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { supabase } from "@/integrations/supabase/client"
 import { useEffect, useState } from "react"
-import { UserCircle } from "lucide-react"
+import { LogOut, UserCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import Index from "./pages/Index"
 import Login from "./pages/Login"
@@ -24,6 +24,7 @@ import Datasets from "./pages/Datasets"
 import Playground from "./pages/Playground"
 import Community from "./pages/Community"
 import Profile from "./pages/Profile"
+import OldHome from "./pages/OldHome" // Renamed from Index
 
 const queryClient = new QueryClient()
 
@@ -34,8 +35,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   useEffect(() => {
     if (!session) {
-      // Save the attempted URL
-      navigate('/login', { state: { from: location.pathname } })
+      navigate('/', { state: { from: location.pathname } })
     }
   }, [session, navigate, location])
 
@@ -84,16 +84,18 @@ const UserMenu = () => {
               <AvatarImage src={avatarUrl} alt="User avatar" />
             ) : (
               <AvatarFallback>
-                <UserCircle className="h-6 w-6" />
+                {initial}
               </AvatarFallback>
             )}
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => navigate('/profile')}>
-            View Profile
+            <UserCircle className="mr-2 h-4 w-4" />
+            Profile
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -105,8 +107,8 @@ const UserMenu = () => {
 const App = () => {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const session = useSession()
 
-  // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
@@ -126,7 +128,6 @@ const App = () => {
       setIsLoading(false)
     })
 
-    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsLoading(false)
     })
@@ -146,15 +147,12 @@ const App = () => {
         <BrowserRouter>
           <SidebarProvider>
             <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <UserMenu />
+              {session && <AppSidebar />}
+              {session && <UserMenu />}
               <main className="flex-1">
                 <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route 
-                    path="/login" 
-                    element={<Login />}
-                  />
+                  <Route path="/" element={session ? <Navigate to="/playground" /> : <Login />} />
+                  <Route path="/old-home" element={<OldHome />} />
                   <Route path="/solvers" element={<Solvers />} />
                   <Route path="/datasets" element={<Datasets />} />
                   <Route 

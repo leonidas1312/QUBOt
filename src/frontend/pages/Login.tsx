@@ -12,7 +12,6 @@ const Login = () => {
 
   useEffect(() => {
     if (session) {
-      // Redirect to the originally attempted URL or playground
       const from = location.state?.from || "/playground"
       navigate(from, { replace: true })
     }
@@ -24,8 +23,10 @@ const Login = () => {
         <div className="w-full md:w-1/2 text-left space-y-6 p-4">
           <h1 className="text-5xl font-bold text-gray-800">QUBOt</h1>
           <p className="text-lg text-gray-700 leading-relaxed">
-            Accelerate your research and solve real-world QUBO problems with our collaborative, 
-            cloud-based optimization platform.
+            Welcome to QUBOt - Your Quantum Optimization Platform
+          </p>
+          <p className="text-gray-600">
+            Sign in to access the playground and start optimizing your QUBO problems with our quantum-inspired solvers.
           </p>
         </div>
 
