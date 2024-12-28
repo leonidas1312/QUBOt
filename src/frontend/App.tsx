@@ -128,7 +128,7 @@ const App = () => {
     })
 
     const initSession = async () => {
-      const { data } = await supabase.auth.getSession()
+      await supabase.auth.getSession()
       setIsLoading(false)
     }
 
