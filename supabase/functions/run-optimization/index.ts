@@ -50,9 +50,9 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  let requestData;
   try {
-    // Parse request body once and store jobId
-    const requestData = await req.json();
+    requestData = await req.json();
     const jobId = requestData.jobId;
     
     if (!jobId) {
@@ -184,6 +184,7 @@ serve(async (req: Request) => {
     );
 
     try {
+      // Use the stored requestData from the outer scope
       const { data: job } = await errorClient
         .from('optimization_jobs')
         .select('*, dataset:datasets(*)')
