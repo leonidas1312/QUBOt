@@ -49,8 +49,9 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  let requestData;
   try {
-    const requestData = await req.json();
+    requestData = await req.json();
     const jobId = requestData.jobId;
     
     if (!jobId) {
@@ -101,7 +102,7 @@ serve(async (req: Request) => {
     const solverText = await solverData.text();
     const solverBase64 = btoa(solverText);
 
-    // Instead of downloading the dataset, get a signed URL
+    // Get a signed URL for the dataset
     const { data: { signedUrl }, error: signedUrlError } = await supabase.storage
       .from('datasets')
       .createSignedUrl(job.dataset.file_path, 3600); // 1 hour expiry
@@ -111,62 +112,68 @@ serve(async (req: Request) => {
     }
 
     // Call solver service with the signed URL
-    const solverServiceUrl = "http://solver_service:5000";
+    const solverServiceUrl = "http://localhost:5000"; // Updated URL to use localhost
     console.log('Calling solver service at:', solverServiceUrl);
     
-    const resp = await fetch(solverServiceUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        solver: solverBase64,
-        dataset_url: signedUrl, // Pass the signed URL instead of the dataset
-        parameters: job.parameters
-      })
-    });
+    try {
+      const resp = await fetch(solverServiceUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          solver: solverBase64,
+          dataset_url: signedUrl,
+          parameters: job.parameters
+        })
+      });
 
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      throw new Error(`Solver service error: ${errorText}`);
-    }
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Solver service error: ${errorText}`);
+      }
 
-    const solverResult = await resp.json();
+      const solverResult = await resp.json();
 
-    // Send completion email
-    if (job.dataset.email) {
-      await sendEmail(
-        job.dataset.email,
-        'Optimization Job Completed',
-        {
-          jobId,
-          status: 'COMPLETED',
-          parameters: job.parameters,
-          results: solverResult,
-          solver: {
-            name: job.solver.name,
-            description: job.solver.description
-          },
-          dataset: {
-            name: job.dataset.name,
-            description: job.dataset.description
+      // Send completion email
+      if (job.dataset.email) {
+        await sendEmail(
+          job.dataset.email,
+          'Optimization Job Completed',
+          {
+            jobId,
+            status: 'COMPLETED',
+            parameters: job.parameters,
+            results: solverResult,
+            solver: {
+              name: job.solver.name,
+              description: job.solver.description
+            },
+            dataset: {
+              name: job.dataset.name,
+              description: job.dataset.description
+            }
           }
-        }
+        );
+      }
+
+      // Update job with results
+      await supabase
+        .from('optimization_jobs')
+        .update({
+          status: 'COMPLETED',
+          results: solverResult,
+          logs: [...(job.logs || []), 'Solver completed successfully']
+        })
+        .eq('id', jobId);
+
+      return new Response(
+        JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
+    } catch (solverError) {
+      console.error('Error calling solver service:', solverError);
+      throw new Error(`Failed to call solver service: ${solverError.message}`);
     }
-
-    // Update job with results
-    await supabase
-      .from('optimization_jobs')
-      .update({
-        status: 'COMPLETED',
-        results: solverResult,
-        logs: [...(job.logs || []), 'Solver completed successfully']
-      })
-      .eq('id', jobId);
-
-    return new Response(
-      JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('Error in optimization:', error);
