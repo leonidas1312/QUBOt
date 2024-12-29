@@ -85,8 +85,12 @@ serve(async (req: Request) => {
       .eq('id', jobId);
 
     try {
+      // Use the Docker service name 'solver_service' instead of localhost
+      const solverServiceUrl = 'http://solver_service:5000/solve';
+      console.log('Calling solver service at:', solverServiceUrl);
+
       // Forward the job to the solver service
-      const response = await fetch('http://172.19.0.4:5000/solve', {
+      const response = await fetch(solverServiceUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
