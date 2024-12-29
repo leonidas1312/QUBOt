@@ -86,7 +86,7 @@ serve(async (req: Request) => {
 
     try {
       // Forward the job to the solver service
-      const response = await fetch('http://solver_service:5000/solve', {
+      const response = await fetch('http://172.19.0.4:5000/solve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
