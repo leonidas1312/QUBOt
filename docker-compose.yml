@@ -71,11 +71,11 @@ services:
     depends_on:
       - backend
       - redis
-    #environment:
+    environment:
       # If you need to pass tokens / environment variables
-      #- SUPABASE_URL=${SUPABASE_URL}
-      #- SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      # etc.
+      - SUPABASE_URL="https://zddqnxesbhbvmdcyqpuw.supabase.co"
+      - SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZHFueGVzYmhidm1kY3lxcHV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5Mjc4MjIsImV4cCI6MjA0NzUwMzgyMn0.aBMh1r41BNHRKuT1UICK2Rr2Vq6EqptdTVymf4FqvrY"
+      
 
 networks:
   app-network:
