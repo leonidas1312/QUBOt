@@ -129,28 +129,25 @@ serve(async (req: Request) => {
 
     const solverResult = await resp.json();
 
-    // Prepare email data
-    const emailData = {
-      jobId,
-      status: 'COMPLETED',
-      parameters: job.parameters,
-      results: solverResult,
-      solver: {
-        name: job.solver.name,
-        description: job.solver.description
-      },
-      dataset: {
-        name: job.dataset.name,
-        description: job.dataset.description
-      }
-    };
-
     // Send completion email with JSON results
     if (job.dataset.email) {
       await sendEmail(
         job.dataset.email,
         'Optimization Job Completed',
-        emailData
+        {
+          jobId,
+          status: 'COMPLETED',
+          parameters: job.parameters,
+          results: solverResult,
+          solver: {
+            name: job.solver.name,
+            description: job.solver.description
+          },
+          dataset: {
+            name: job.dataset.name,
+            description: job.dataset.description
+          }
+        }
       );
     }
 
@@ -184,20 +181,22 @@ serve(async (req: Request) => {
     );
 
     try {
-      // Use the stored requestData from the outer scope
+      if (!requestData?.jobId) {
+        throw new Error('No job ID available for error handling');
+      }
+
       const { data: job } = await errorClient
         .from('optimization_jobs')
         .select('*, dataset:datasets(*)')
-        .eq('id', requestData?.jobId)
+        .eq('id', requestData.jobId)
         .single();
 
       if (job?.dataset?.email) {
-        // Send failure email with error details
         await sendEmail(
           job.dataset.email,
           'Optimization Job Failed',
           {
-            jobId: requestData?.jobId,
+            jobId: requestData.jobId,
             status: 'FAILED',
             error: String(error),
             timestamp: new Date().toISOString()
@@ -212,7 +211,7 @@ serve(async (req: Request) => {
           error_message: String(error),
           logs: ['Error occurred during optimization:', String(error)]
         })
-        .eq('id', requestData?.jobId);
+        .eq('id', requestData.jobId);
 
     } catch (updateError) {
       console.error('Error updating job status:', updateError);

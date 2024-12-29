@@ -108,7 +108,10 @@ export const CreateJobForm = ({ onJobCreated }: CreateJobFormProps) => {
       Object.values(solver.solver_parameters).forEach((param: any) => {
         initialParams[param.name] = param.default_value || "";
       });
-      setParameters(initialParams);
+      setParameters(prev => ({
+        ...prev,
+        ...initialParams
+      }));
     }
   };
 
