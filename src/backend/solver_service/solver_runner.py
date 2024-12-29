@@ -16,7 +16,7 @@ app = Flask(__name__)
 # Initialize Supabase client
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    os.environ.get("SUPABASE_ANON_KEY")
 )
 
 @app.route("/", methods=["POST"])
