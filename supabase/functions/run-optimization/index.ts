@@ -43,6 +43,43 @@ async function sendEmail(to: string, subject: string, data: any) {
   }
 }
 
+function executeSolver(solverCode: string, QUBO_matrix: Float64Array, parameters: any) {
+  try {
+    // Extract the solve function from the solver code
+    const solveFunctionMatch = solverCode.match(/def\s+solve\s*\([^)]*\):([\s\S]*?)(?=\n\w+|$)/);
+    if (!solveFunctionMatch) {
+      throw new Error('No solve function found in solver code');
+    }
+
+    const solveFunctionBody = solveFunctionMatch[1].trim();
+    console.log('Extracted solve function body:', solveFunctionBody);
+
+    // Convert Python code to JavaScript
+    const jsCode = `
+      function solve(QUBO_matrix, parameters) {
+        // Basic Python to JavaScript conversion
+        ${solveFunctionBody
+          .replace(/def\s+/g, 'function ')
+          .replace(/:\s*$/gm, ' {')
+          .replace(/\bend\b/g, '}')
+          .replace(/print/g, 'console.log')
+        }
+        return result;
+      }
+      return solve(QUBO_matrix, parameters);
+    `;
+
+    console.log('Converted JavaScript code:', jsCode);
+    
+    // Execute the converted code
+    const solver = new Function('QUBO_matrix', 'parameters', jsCode);
+    return solver(QUBO_matrix, parameters);
+  } catch (error) {
+    console.error('Error in solver execution:', error);
+    throw new Error(`Solver execution failed: ${error.message}`);
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -103,7 +140,6 @@ serve(async (req: Request) => {
     }
 
     try {
-      // Convert solver code to string and dataset to array buffer
       const solverCode = await solverData.text();
       const arrayBuffer = await datasetData.arrayBuffer();
       const quboMatrix = new Float64Array(arrayBuffer);
@@ -111,16 +147,7 @@ serve(async (req: Request) => {
       console.log('Dataset loaded, size:', quboMatrix.length);
       console.log('Executing solver with parameters:', job.parameters);
 
-      // Execute solver in a controlled context
-      const solver = new Function('QUBO_matrix', 'parameters', `
-        try {
-          ${solverCode}
-        } catch (error) {
-          throw new Error('Solver execution failed: ' + error.message);
-        }
-      `);
-
-      const result = await solver(quboMatrix, job.parameters);
+      const result = executeSolver(solverCode, quboMatrix, job.parameters);
       console.log('Solver execution completed:', result);
 
       // Send completion email
