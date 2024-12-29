@@ -59,6 +59,24 @@ services:
     networks:
       - app-network
 
+  solver_service:
+    build:
+      context: ./src/backend/solver_service
+      dockerfile: solver_service.dockerfile
+    # If you run a Flask server, it might default to port 5000
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+      - redis
+    #environment:
+      # If you need to pass tokens / environment variables
+      #- SUPABASE_URL=${SUPABASE_URL}
+      #- SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # etc.
+
 networks:
   app-network:
     driver: bridge

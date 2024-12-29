@@ -1,3 +1,4 @@
+// /supabase/functions/run-optimization/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -13,15 +14,13 @@ serve(async (req) => {
 
   try {
     const { jobId } = await req.json()
-    console.log('Starting optimization for job:', jobId)
     
-    // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
     
-    // Fetch job details including solver and dataset
+    // 1. Fetch job details
     const { data: job, error: jobError } = await supabase
       .from('optimization_jobs')
       .select('*, solver:solvers(*), dataset:datasets(*)')
@@ -32,52 +31,34 @@ serve(async (req) => {
       throw new Error(jobError?.message || 'Job not found')
     }
 
-    // Update job status to RUNNING
-    await supabase
-      .from('optimization_jobs')
-      .update({ 
-        status: 'RUNNING',
-        logs: [...(job.logs || []), 'Starting optimization...']
-      })
-      .eq('id', jobId)
-
-    // Download solver file
+    // 2. Download the solver file
     const { data: solverData, error: solverError } = await supabase.storage
       .from('solvers')
       .download(job.solver.file_path)
-
-    if (solverError) {
-      throw new Error(`Failed to download solver: ${solverError.message}`)
+    if (solverError || !solverData) {
+      throw new Error(`Failed to download solver: ${solverError?.message}`)
     }
+    const solverText = await solverData.text()
+    const solverBase64 = btoa(solverText)
 
-    // Download dataset file
+    // 3. Download dataset file
     const { data: datasetData, error: datasetError } = await supabase.storage
       .from('datasets')
       .download(job.dataset.file_path)
-
-    if (datasetError) {
-      throw new Error(`Failed to download dataset: ${datasetError.message}`)
+    if (datasetError || !datasetData) {
+      throw new Error(`Failed to download dataset: ${datasetError?.message}`)
     }
+    // We convert bytes to base64
+    const datasetBuffer = await datasetData.arrayBuffer()
+    const datasetBase64 = btoa(
+      String.fromCharCode(...new Uint8Array(datasetBuffer))
+    )
 
-    // Convert files to base64 for Docker API
-    const solverBase64 = btoa(await solverData.text())
-    const datasetBase64 = btoa(new Uint8Array(await datasetData.arrayBuffer()).toString())
-
-    // Prepare Docker API request
-    const dockerApiUrl = Deno.env.get('DOCKER_API_URL')
-    const dockerApiKey = Deno.env.get('DOCKER_API_KEY')
-
-    if (!dockerApiUrl || !dockerApiKey) {
-      throw new Error('Docker API configuration missing')
-    }
-
-    // Send request to Docker API
-    const dockerResponse = await fetch(dockerApiUrl, {
+    // 4. Post to solver_service
+    const solverServiceUrl = "http://solver_service:5000/"  // from docker-compose
+    const resp = await fetch(solverServiceUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${dockerApiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         solver: solverBase64,
         dataset: datasetBase64,
@@ -85,51 +66,47 @@ serve(async (req) => {
       })
     })
 
-    if (!dockerResponse.ok) {
-      throw new Error(`Docker API error: ${await dockerResponse.text()}`)
+    if (!resp.ok) {
+      throw new Error(`Solver service error: ${await resp.text()}`)
     }
 
-    const result = await dockerResponse.json()
+    const solverResult = await resp.json()
 
-    // Update job with results
+    // 5. Save results in DB
     await supabase
       .from('optimization_jobs')
       .update({
         status: 'COMPLETED',
-        results: result,
-        logs: [...(job.logs || []), 'Optimization completed successfully']
+        results: solverResult,
+        logs: [...(job.logs || []), 'Solver completed']
       })
       .eq('id', jobId)
 
-    return new Response(
-      JSON.stringify({ message: 'Job completed successfully', result }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({
+      message: 'Job completed successfully',
+      result: solverResult
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
 
   } catch (error) {
     console.error('Error in optimization:', error)
-    
-    // Update job with error status
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
-    
     await supabase
       .from('optimization_jobs')
       .update({
         status: 'FAILED',
-        error_message: error.message,
-        logs: ['Error occurred during optimization:', error.message]
+        error_message: String(error),
+        logs: ['Error occurred during optimization:', String(error)]
       })
       .eq('id', jobId)
 
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
 })

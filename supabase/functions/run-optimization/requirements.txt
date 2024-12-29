@@ -1,4 +1,0 @@
-numpy
-pennylane
-gurobipy
-torch

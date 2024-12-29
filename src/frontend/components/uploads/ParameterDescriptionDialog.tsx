@@ -3,7 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Parameter } from "./solverUtils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ParameterDescriptionDialogProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ export const ParameterDescriptionDialog = ({
   const [localParameters, setLocalParameters] = useState<Parameter[]>(parameters);
 
   // Update local parameters when dialog opens with new parameters
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalParameters(parameters);
   }, [parameters]);
 
