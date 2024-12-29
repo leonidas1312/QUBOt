@@ -29,7 +29,7 @@ async function sendEmail(to: string, subject: string, data: any) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'QUBOt <solver@qubot.opt>',
+        from: 'QUBOt <jonhkarystos@gmail.com>',
         to: [to],
         subject,
         html: htmlContent,
