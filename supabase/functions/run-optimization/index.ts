@@ -111,14 +111,17 @@ serve(async (req: Request) => {
       throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
     }
 
-    // Call solver service with the signed URL
-    const solverServiceUrl = "http://localhost:5000"; // Updated URL to use localhost
+    // Call solver service using the public URL
+    const solverServiceUrl = "http://127.0.0.1:5000"; // Using loopback address
     console.log('Calling solver service at:', solverServiceUrl);
     
     try {
       const resp = await fetch(solverServiceUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           solver: solverBase64,
           dataset_url: signedUrl,
@@ -128,10 +131,12 @@ serve(async (req: Request) => {
 
       if (!resp.ok) {
         const errorText = await resp.text();
+        console.error('Solver service error response:', errorText);
         throw new Error(`Solver service error: ${errorText}`);
       }
 
       const solverResult = await resp.json();
+      console.log('Solver service response:', solverResult);
 
       // Send completion email
       if (job.dataset.email) {
