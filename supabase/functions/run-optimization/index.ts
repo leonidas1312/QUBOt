@@ -86,7 +86,7 @@ serve(async (req: Request) => {
 
     try {
       // Use the Docker service name 'solver_service' instead of localhost
-      const solverServiceUrl = 'http://solver_service:5000/solve';
+      const solverServiceUrl = 'http://solver_service-1:5000/solve';
       console.log('Calling solver service at:', solverServiceUrl);
 
       // Forward the job to the solver service
