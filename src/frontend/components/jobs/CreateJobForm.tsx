@@ -91,6 +91,8 @@ export const CreateJobForm = ({ onJobCreated }: CreateJobFormProps) => {
           ...prev,
           qubo_matrix: JSON.stringify(Array.from(quboMatrix))
         }));
+
+        console.log("QUBO Matrix loaded:", quboMatrix);
       } catch (error) {
         console.error("Error loading dataset:", error);
         toast.error("Failed to load dataset");
@@ -144,6 +146,8 @@ export const CreateJobForm = ({ onJobCreated }: CreateJobFormProps) => {
         .single();
 
       if (jobError) throw jobError;
+
+      console.log("Created job with parameters:", parameters);
 
       // Call the Edge Function to start the optimization
       const { data, error } = await supabase.functions.invoke('run-optimization', {
