@@ -1,4 +1,3 @@
-# /src/backend/solver_service/solver_service.dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -18,10 +17,19 @@ RUN pip install --no-cache-dir \
     numpy \
     flask \
     python-dotenv \
-    supabase
+    supabase \
+    requests
 
 # Copy the solver runner script
 COPY solver_runner.py .
+
+# Set environment variables for memory management
+ENV PYTHONUNBUFFERED=1
+ENV MALLOC_TRIM_THRESHOLD_=100000
+ENV PYTHONMALLOC=malloc
+
+# Set memory limits for the container (adjust as needed)
+ENV MEMORY_LIMIT=8g
 
 EXPOSE 5000
 

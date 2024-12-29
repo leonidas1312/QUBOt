@@ -59,24 +59,30 @@ services:
     networks:
       - app-network
 
-  #solver_service:
-  #  build:
-  #    context: ./src/backend/solver_service
-  #    dockerfile: solver_service.dockerfile
-  #  ports:
-  #    - "5000:5000"
-  #  networks:
-  #    - app-network
-  #  depends_on:
-  #    - backend
-  #    - redis
-  #  env_file:
-  #    - .env
-  #  environment:
-  #    - SUPABASE_URL
-  #    - SUPABASE_ANON_KEY
-  #    - SUPABASE_SERVICE_ROLE_KEY
-  #    - SUPABASE_DB_URL
+  solver_service:
+    build:
+      context: ./src/backend/solver_service
+      dockerfile: solver_service.dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+    depends_on:
+      - backend
+      - redis
+    env_file:
+      - .env
+    environment:
+      - SUPABASE_URL
+      - SUPABASE_ANON_KEY
+      - SUPABASE_SERVICE_ROLE_KEY
+      - SUPABASE_DB_URL
 
 networks:
   app-network:
