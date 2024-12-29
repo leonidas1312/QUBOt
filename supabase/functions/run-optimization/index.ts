@@ -43,43 +43,6 @@ async function sendEmail(to: string, subject: string, data: any) {
   }
 }
 
-function executeSolver(solverCode: string, QUBO_matrix: Float64Array, parameters: any) {
-  try {
-    // Extract the solve function from the solver code
-    const solveFunctionMatch = solverCode.match(/def\s+solve\s*\([^)]*\):([\s\S]*?)(?=\n\w+|$)/);
-    if (!solveFunctionMatch) {
-      throw new Error('No solve function found in solver code');
-    }
-
-    const solveFunctionBody = solveFunctionMatch[1].trim();
-    console.log('Extracted solve function body:', solveFunctionBody);
-
-    // Convert Python code to JavaScript
-    const jsCode = `
-      function solve(QUBO_matrix, parameters) {
-        // Basic Python to JavaScript conversion
-        ${solveFunctionBody
-          .replace(/def\s+/g, 'function ')
-          .replace(/:\s*$/gm, ' {')
-          .replace(/\bend\b/g, '}')
-          .replace(/print/g, 'console.log')
-        }
-        return result;
-      }
-      return solve(QUBO_matrix, parameters);
-    `;
-
-    console.log('Converted JavaScript code:', jsCode);
-    
-    // Execute the converted code
-    const solver = new Function('QUBO_matrix', 'parameters', jsCode);
-    return solver(QUBO_matrix, parameters);
-  } catch (error) {
-    console.error('Error in solver execution:', error);
-    throw new Error(`Solver execution failed: ${error.message}`);
-  }
-}
-
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -121,33 +84,30 @@ serve(async (req: Request) => {
       })
       .eq('id', jobId);
 
-    // Get solver code
-    const { data: solverData, error: solverError } = await supabase.storage
-      .from('solvers')
-      .download(job.solver.file_path);
-    
-    if (solverError || !solverData) {
-      throw new Error(`Failed to download solver: ${solverError?.message}`);
-    }
-
-    // Get dataset
-    const { data: datasetData, error: datasetError } = await supabase.storage
-      .from('datasets')
-      .download(job.dataset.file_path);
-
-    if (datasetError || !datasetData) {
-      throw new Error(`Failed to download dataset: ${datasetError?.message}`);
-    }
-
     try {
-      const solverCode = await solverData.text();
-      const arrayBuffer = await datasetData.arrayBuffer();
-      const quboMatrix = new Float64Array(arrayBuffer);
-      
-      console.log('Dataset loaded, size:', quboMatrix.length);
-      console.log('Executing solver with parameters:', job.parameters);
+      // Forward the job to the solver service
+      const response = await fetch('http://solver_service:5000/solve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId,
+          solverId: job.solver.id,
+          solverPath: job.solver.file_path,
+          datasetPath: job.dataset.file_path,
+          parameters: job.parameters,
+          supabaseUrl: Deno.env.get('SUPABASE_URL'),
+          supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        }),
+      });
 
-      const result = executeSolver(solverCode, quboMatrix, job.parameters);
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Solver service error: ${errorData}`);
+      }
+
+      const result = await response.json();
       console.log('Solver execution completed:', result);
 
       // Send completion email
