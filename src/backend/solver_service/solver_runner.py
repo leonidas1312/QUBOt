@@ -7,25 +7,20 @@ import subprocess
 import sys
 import importlib.util
 import io
-from flask import Flask, request, jsonify
 import numpy as np
+import requests
+from flask import Flask, request, jsonify
 from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# Initialize Supabase client
-supabase: Client = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_ANON_KEY")
-)
-
 @app.route("/", methods=["POST"])
 def run_solver():
-    """Receives solver code + dataset + parameters, executes them, returns result."""
+    """Receives solver code + dataset URL + parameters, executes them, returns result."""
     try:
         data = request.get_json()
         solver_b64 = data["solver"]
-        dataset_b64 = data["dataset"]
+        dataset_url = data["dataset_url"]
         parameters = data.get("parameters", {})
 
         # 1. Write the solver file
@@ -33,9 +28,15 @@ def run_solver():
         with open("solver.py", "w") as f:
             f.write(solver_code)
 
-        # 2. Decode the dataset
-        dataset_bytes = base64.b64decode(dataset_b64)
-        QUBO_matrix = np.load(io.BytesIO(dataset_bytes))
+        # 2. Download and load the dataset from the signed URL
+        response = requests.get(dataset_url)
+        if not response.ok:
+            return jsonify({
+                "error": f"Failed to download dataset: {response.status_code}"
+            }), 500
+
+        # Load the dataset in chunks
+        QUBO_matrix = np.load(io.BytesIO(response.content))
 
         # 3. Dynamically load the solver module
         spec = importlib.util.spec_from_file_location("solver", "./solver.py")

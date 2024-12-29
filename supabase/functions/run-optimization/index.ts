@@ -45,7 +45,6 @@ async function sendEmail(to: string, subject: string, data: any) {
 }
 
 serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -60,7 +59,6 @@ serve(async (req: Request) => {
 
     console.log(`Processing job ${jobId}`);
 
-    // Create supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -86,10 +84,11 @@ serve(async (req: Request) => {
       })
       .eq('id', jobId);
 
-    // Download solver and dataset with size check
+    // Get solver code
     const { data: solverData, error: solverError } = await supabase.storage
       .from('solvers')
       .download(job.solver.file_path);
+    
     if (solverError || !solverData) {
       throw new Error(`Failed to download solver: ${solverError?.message}`);
     }
@@ -102,25 +101,16 @@ serve(async (req: Request) => {
     const solverText = await solverData.text();
     const solverBase64 = btoa(solverText);
 
-    // Download and check dataset with chunked processing
-    const { data: datasetData, error: datasetError } = await supabase.storage
+    // Instead of downloading the dataset, get a signed URL
+    const { data: { signedUrl }, error: signedUrlError } = await supabase.storage
       .from('datasets')
-      .download(job.dataset.file_path);
-    if (datasetError || !datasetData) {
-      throw new Error(`Failed to download dataset: ${datasetError?.message}`);
+      .createSignedUrl(job.dataset.file_path, 3600); // 1 hour expiry
+
+    if (signedUrlError) {
+      throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
     }
 
-    // Check dataset file size (max 50MB)
-    if (datasetData.size > 50 * 1024 * 1024) {
-      throw new Error('Dataset file is too large (max 50MB)');
-    }
-
-    const datasetBuffer = await datasetData.arrayBuffer();
-    const datasetBase64 = btoa(
-      String.fromCharCode(...new Uint8Array(datasetBuffer))
-    );
-
-    // Call solver service with timeout
+    // Call solver service with the signed URL
     const solverServiceUrl = "http://solver_service:5000";
     console.log('Calling solver service at:', solverServiceUrl);
     
@@ -129,7 +119,7 @@ serve(async (req: Request) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         solver: solverBase64,
-        dataset: datasetBase64,
+        dataset_url: signedUrl, // Pass the signed URL instead of the dataset
         parameters: job.parameters
       })
     });
@@ -141,7 +131,7 @@ serve(async (req: Request) => {
 
     const solverResult = await resp.json();
 
-    // Send completion email with JSON results
+    // Send completion email
     if (job.dataset.email) {
       await sendEmail(
         job.dataset.email,
@@ -175,24 +165,18 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in optimization:', error);
 
-    // Create a new Supabase client for error handling
-    const errorClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     try {
+      const errorClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
       if (!requestData?.jobId) {
         throw new Error('No job ID available for error handling');
       }
@@ -231,13 +215,7 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ error: String(error) }),
-      { 
-        status: 500,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
