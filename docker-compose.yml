@@ -63,7 +63,6 @@ services:
     build:
       context: ./src/backend/solver_service
       dockerfile: solver_service.dockerfile
-    # If you run a Flask server, it might default to port 5000
     ports:
       - "5000:5000"
     networks:
@@ -72,10 +71,10 @@ services:
       - backend
       - redis
     environment:
-      # If you need to pass tokens / environment variables
-      - SUPABASE_URL="https://zddqnxesbhbvmdcyqpuw.supabase.co"
-      - SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZHFueGVzYmhidm1kY3lxcHV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5Mjc4MjIsImV4cCI6MjA0NzUwMzgyMn0.aBMh1r41BNHRKuT1UICK2Rr2Vq6EqptdTVymf4FqvrY"
-      
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
 
 networks:
   app-network:

@@ -7,11 +7,17 @@ import subprocess
 import sys
 import importlib.util
 import io
-
 from flask import Flask, request, jsonify
 import numpy as np
+from supabase import create_client, Client
 
 app = Flask(__name__)
+
+# Initialize Supabase client
+supabase: Client = create_client(
+    os.environ.get("SUPABASE_URL"),
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+)
 
 @app.route("/", methods=["POST"])
 def run_solver():
@@ -36,24 +42,14 @@ def run_solver():
         solver_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(solver_module)
 
-        # We expect a function "solve(QUBO_matrix, **params)" or similar
-        # or "solve(qubo_matrix, constant=0, ...)"
-        # We'll just assume the user has that function name "solve".
         solve_func = getattr(solver_module, "solve", None)
         if not solve_func:
             return jsonify({
                 "error": "No `solve` function found in solver.py"
             }), 400
 
-        # 4. Call the solver function
-        # Some solvers might have a signature like "solve(qubo_matrix, c=0, ...)"
-        # We'll do best to pass parameters as kwargs
+        # 4. Call the solver function with parameters
         result = solve_func(QUBO_matrix, **parameters)
-
-        # We expect a tuple or something. Let's standardize on a return like:
-        # (best_solution, best_cost, cost_per_iter, elapsed_time)
-        # But it could be anything, so let's just pass it back as JSON-serializable.
-        # We'll attempt to convert arrays to lists if needed.
 
         def make_serializable(x):
             """Helper to convert numpy arrays or other non-serializable objects."""
@@ -61,16 +57,11 @@ def run_solver():
                 return x.tolist()
             return x
 
-        if isinstance(result, tuple) or isinstance(result, list):
-            # Convert each element if needed
+        if isinstance(result, (tuple, list)):
             result_serializable = [make_serializable(r) for r in result]
         else:
-            # Could be just a single object or dict
             if isinstance(result, dict):
-                # convert any arrays inside
-                for k,v in result.items():
-                    result[k] = make_serializable(v)
-                result_serializable = result
+                result_serializable = {k: make_serializable(v) for k, v in result.items()}
             else:
                 result_serializable = make_serializable(result)
 
@@ -80,6 +71,7 @@ def run_solver():
         })
 
     except Exception as e:
+        print(f"Error in solver execution: {str(e)}", file=sys.stderr)
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
