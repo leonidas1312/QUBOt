@@ -103,50 +103,24 @@ serve(async (req: Request) => {
     }
 
     try {
-      // Convert solver code to string
+      // Convert solver code to string and dataset to array buffer
       const solverCode = await solverData.text();
-      console.log('Solver code loaded:', solverCode.substring(0, 100) + '...');
-
-      // Convert dataset to array buffer
       const arrayBuffer = await datasetData.arrayBuffer();
       const quboMatrix = new Float64Array(arrayBuffer);
+      
       console.log('Dataset loaded, size:', quboMatrix.length);
+      console.log('Executing solver with parameters:', job.parameters);
 
-      // Execute the solver in a worker for isolation
-      const workerCode = `
-        self.onmessage = async function(e) {
-          const { solverCode, quboMatrix, parameters } = e.data;
-          try {
-            // Create solver function in worker context
-            const solve = new Function('QUBO_matrix', 'parameters', solverCode);
-            const result = await solve(quboMatrix, parameters);
-            self.postMessage({ success: true, result });
-          } catch (error) {
-            self.postMessage({ success: false, error: error.message });
-          }
-        };
-      `;
+      // Execute solver in a controlled context
+      const solver = new Function('QUBO_matrix', 'parameters', `
+        try {
+          ${solverCode}
+        } catch (error) {
+          throw new Error('Solver execution failed: ' + error.message);
+        }
+      `);
 
-      const blob = new Blob([workerCode], { type: 'application/javascript' });
-      const worker = new Worker(URL.createObjectURL(blob));
-
-      const result = await new Promise((resolve, reject) => {
-        worker.onmessage = (e) => {
-          if (e.data.success) {
-            resolve(e.data.result);
-          } else {
-            reject(new Error(e.data.error));
-          }
-        };
-        worker.onerror = (error) => reject(error);
-        
-        worker.postMessage({
-          solverCode,
-          quboMatrix,
-          parameters: job.parameters
-        });
-      });
-
+      const result = await solver(quboMatrix, job.parameters);
       console.log('Solver execution completed:', result);
 
       // Send completion email
