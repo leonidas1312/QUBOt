@@ -43,14 +43,73 @@ async function sendEmail(to: string, subject: string, data: any) {
   }
 }
 
+async function updateJobStatus(supabase: any, jobId: string, status: string, message: string, results?: any) {
+  try {
+    const updateData: any = {
+      status,
+      logs: [message],
+    };
+    
+    if (results) {
+      updateData.results = results;
+    }
+    
+    if (status === 'FAILED') {
+      updateData.error_message = message;
+    }
+    
+    await supabase
+      .from('optimization_jobs')
+      .update(updateData)
+      .eq('id', jobId);
+      
+    console.log(`Job ${jobId} status updated to ${status}`);
+  } catch (error) {
+    console.error('Error updating job status:', error);
+  }
+}
+
+async function callSolverService(jobData: any) {
+  const solverServiceUrl = 'http://solver_service-1:5000/solve';
+  console.log('Attempting to call solver service at:', solverServiceUrl);
+  
+  try {
+    const response = await fetch(solverServiceUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jobId: jobData.id,
+        solverId: jobData.solver.id,
+        solverPath: jobData.solver.file_path,
+        datasetPath: jobData.dataset.file_path,
+        parameters: jobData.parameters,
+        supabaseUrl: Deno.env.get('SUPABASE_URL'),
+        supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Solver service responded with status ${response.status}: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error calling solver service:', error);
+    throw new Error(`Failed to call solver service: ${error.message}`);
+  }
+}
+
 serve(async (req: Request) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
-  let requestData;
   try {
-    requestData = await req.json();
+    const requestData = await req.json();
     const jobId = requestData.jobId;
     
     if (!jobId) {
@@ -76,42 +135,10 @@ serve(async (req: Request) => {
     }
 
     // Update job to RUNNING
-    await supabase
-      .from('optimization_jobs')
-      .update({ 
-        status: 'RUNNING',
-        logs: [...(job.logs || []), 'Starting optimization...']
-      })
-      .eq('id', jobId);
+    await updateJobStatus(supabase, jobId, 'RUNNING', 'Starting optimization...');
 
     try {
-      // Use the Docker service name 'solver_service-1' instead of localhost
-      const solverServiceUrl = 'http://solver_service-1:5000/solve';
-      console.log('Calling solver service at:', solverServiceUrl);
-
-      // Forward the job to the solver service
-      const response = await fetch(solverServiceUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jobId,
-          solverId: job.solver.id,
-          solverPath: job.solver.file_path,
-          datasetPath: job.dataset.file_path,
-          parameters: job.parameters,
-          supabaseUrl: Deno.env.get('SUPABASE_URL'),
-          supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Solver service error: ${errorData}`);
-      }
-
-      const result = await response.json();
+      const result = await callSolverService(job);
       console.log('Solver execution completed:', result);
 
       // Send completion email
@@ -137,23 +164,15 @@ serve(async (req: Request) => {
       }
 
       // Update job with results
-      await supabase
-        .from('optimization_jobs')
-        .update({
-          status: 'COMPLETED',
-          results: result,
-          logs: [...(job.logs || []), 'Solver completed successfully']
-        })
-        .eq('id', jobId);
+      await updateJobStatus(supabase, jobId, 'COMPLETED', 'Solver completed successfully', result);
 
       return new Response(
         JSON.stringify({ message: 'Job completed successfully', result }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
-    } catch (solverError) {
-      console.error('Error executing solver:', solverError);
-      throw new Error(`Failed to execute solver: ${solverError.message}`);
+    } catch (error) {
+      throw new Error(`Failed to execute solver: ${error.message}`);
     }
 
   } catch (error) {
@@ -188,14 +207,7 @@ serve(async (req: Request) => {
         );
       }
 
-      await errorClient
-        .from('optimization_jobs')
-        .update({
-          status: 'FAILED',
-          error_message: String(error),
-          logs: ['Error occurred during optimization:', String(error)]
-        })
-        .eq('id', requestData.jobId);
+      await updateJobStatus(errorClient, requestData.jobId, 'FAILED', String(error));
 
     } catch (updateError) {
       console.error('Error updating job status:', updateError);
