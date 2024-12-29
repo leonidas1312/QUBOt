@@ -12,14 +12,18 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  let jobId: string | undefined;
+
   try {
-    // Parse the request body
+    // Parse the request body once at the beginning
     const body = await req.json()
-    const { jobId } = body
+    jobId = body.jobId
     
     if (!jobId) {
       throw new Error("jobId is missing from request body")
     }
+
+    console.log(`Processing job ${jobId}`)
 
     // Create supabase client
     const supabase = createClient(
@@ -114,10 +118,9 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in optimization:', error)
 
-    // If we have a jobId from the try block scope, update job status
-    try {
-      const { jobId } = await req.json()
-      if (jobId) {
+    // If we have a jobId, update job status
+    if (jobId) {
+      try {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -130,9 +133,9 @@ serve(async (req: Request) => {
             logs: ['Error occurred during optimization:', String(error)]
           })
           .eq('id', jobId)
+      } catch (updateError) {
+        console.error('Error updating job status:', updateError)
       }
-    } catch (parseError) {
-      console.error('Could not parse request body in error handler:', parseError)
     }
 
     // Return error response with CORS headers
