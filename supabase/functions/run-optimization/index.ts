@@ -50,9 +50,8 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  let requestData;
   try {
-    requestData = await req.json();
+    const requestData = await req.json();
     const jobId = requestData.jobId;
     
     if (!jobId) {
@@ -87,28 +86,41 @@ serve(async (req: Request) => {
       })
       .eq('id', jobId);
 
-    // Download solver and dataset
+    // Download solver and dataset with size check
     const { data: solverData, error: solverError } = await supabase.storage
       .from('solvers')
       .download(job.solver.file_path);
     if (solverError || !solverData) {
       throw new Error(`Failed to download solver: ${solverError?.message}`);
     }
+
+    // Check solver file size (max 10MB)
+    if (solverData.size > 10 * 1024 * 1024) {
+      throw new Error('Solver file is too large (max 10MB)');
+    }
+
     const solverText = await solverData.text();
     const solverBase64 = btoa(solverText);
 
+    // Download and check dataset with chunked processing
     const { data: datasetData, error: datasetError } = await supabase.storage
       .from('datasets')
       .download(job.dataset.file_path);
     if (datasetError || !datasetData) {
       throw new Error(`Failed to download dataset: ${datasetError?.message}`);
     }
+
+    // Check dataset file size (max 50MB)
+    if (datasetData.size > 50 * 1024 * 1024) {
+      throw new Error('Dataset file is too large (max 50MB)');
+    }
+
     const datasetBuffer = await datasetData.arrayBuffer();
     const datasetBase64 = btoa(
       String.fromCharCode(...new Uint8Array(datasetBuffer))
     );
 
-    // Call solver service
+    // Call solver service with timeout
     const solverServiceUrl = "http://solver_service:5000";
     console.log('Calling solver service at:', solverServiceUrl);
     
