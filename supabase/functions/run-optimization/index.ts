@@ -2,34 +2,32 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req: Request) => {
-  // Always handle OPTIONS for CORS preflight
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // We'll define jobId in outer scope so we can reference it in catch block
-  let jobId: string | undefined = undefined
-
   try {
-    // 1. Parse the JSON from request
+    // Parse the request body
     const body = await req.json()
-    jobId = body.jobId
+    const { jobId } = body
+    
     if (!jobId) {
       throw new Error("jobId is missing from request body")
     }
 
-    // 2. Create supabase client from environment variables
+    // Create supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // 3. Fetch job details
+    // Fetch job details
     const { data: job, error: jobError } = await supabase
       .from('optimization_jobs')
       .select('*, solver:solvers(*), dataset:datasets(*)')
@@ -40,7 +38,7 @@ serve(async (req: Request) => {
       throw new Error(jobError?.message || 'Job not found')
     }
 
-    // For example, update job to RUNNING
+    // Update job to RUNNING
     await supabase
       .from('optimization_jobs')
       .update({ 
@@ -49,7 +47,7 @@ serve(async (req: Request) => {
       })
       .eq('id', jobId)
 
-    // 4. Download solver and dataset from storage
+    // Download solver and dataset
     const { data: solverData, error: solverError } = await supabase.storage
       .from('solvers')
       .download(job.solver.file_path)
@@ -66,13 +64,14 @@ serve(async (req: Request) => {
       throw new Error(`Failed to download dataset: ${datasetError?.message}`)
     }
     const datasetBuffer = await datasetData.arrayBuffer()
-    // Convert to base64
     const datasetBase64 = btoa(
       String.fromCharCode(...new Uint8Array(datasetBuffer))
     )
 
-    // 5. If you're calling your internal solver container (like solver_service), do:
-    const solverServiceUrl = "http://solver_service:5000/"
+    // Call solver service
+    const solverServiceUrl = "http://solver_service:5000"
+    console.log('Calling solver service at:', solverServiceUrl)
+    
     const resp = await fetch(solverServiceUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -84,12 +83,14 @@ serve(async (req: Request) => {
     })
 
     if (!resp.ok) {
-      throw new Error(`Solver service error: ${await resp.text()}`)
+      const errorText = await resp.text()
+      console.error('Solver service error:', errorText)
+      throw new Error(`Solver service error: ${errorText}`)
     }
 
     const solverResult = await resp.json()
 
-    // 6. Update job with results
+    // Update job with results
     await supabase
       .from('optimization_jobs')
       .update({
@@ -99,36 +100,50 @@ serve(async (req: Request) => {
       })
       .eq('id', jobId)
 
-    // 7. Return success
+    // Return success response with CORS headers
     return new Response(
       JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     )
 
   } catch (error) {
     console.error('Error in optimization:', error)
 
-    // If we have a jobId, update job status to FAILED
-    if (jobId) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      )
-      await supabase
-        .from('optimization_jobs')
-        .update({
-          status: 'FAILED',
-          error_message: String(error),
-          logs: ['Error occurred during optimization:', String(error)]
-        })
-        .eq('id', jobId)
+    // If we have a jobId from the try block scope, update job status
+    try {
+      const { jobId } = await req.json()
+      if (jobId) {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+        await supabase
+          .from('optimization_jobs')
+          .update({
+            status: 'FAILED',
+            error_message: String(error),
+            logs: ['Error occurred during optimization:', String(error)]
+          })
+          .eq('id', jobId)
+      }
+    } catch (parseError) {
+      console.error('Could not parse request body in error handler:', parseError)
     }
 
+    // Return error response with CORS headers
     return new Response(
       JSON.stringify({ error: String(error) }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
       }
     )
   }
