@@ -15,7 +15,19 @@ function estimateRuntime(parameters: any): number {
   return Math.ceil(maxIterations * baseTimePerIteration);
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, data: any) {
+  if (!RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set, skipping email notification');
+    return;
+  }
+
+  const htmlContent = `
+    <h1>${subject}</h1>
+    <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;">
+      ${JSON.stringify(data, null, 2)}
+    </pre>
+  `;
+
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -27,7 +39,7 @@ async function sendEmail(to: string, subject: string, html: string) {
         from: 'Quantum Optimizer <optimizer@yourdomain.com>',
         to: [to],
         subject,
-        html,
+        html: htmlContent,
       }),
     });
 
@@ -36,7 +48,6 @@ async function sendEmail(to: string, subject: string, html: string) {
     }
   } catch (error) {
     console.error('Error sending email:', error);
-    // Don't throw the error to prevent job failure
   }
 }
 
@@ -46,34 +57,32 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  let jobId: string | undefined;
-
   try {
-    // Parse the request body once at the beginning
-    const body = await req.json()
-    jobId = body.jobId
+    // Parse request body once and store jobId
+    const body = await req.json();
+    const jobId = body.jobId;
     
     if (!jobId) {
-      throw new Error("jobId is missing from request body")
+      throw new Error("jobId is missing from request body");
     }
 
-    console.log(`Processing job ${jobId}`)
+    console.log(`Processing job ${jobId}`);
 
     // Create supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
     // Fetch job details
     const { data: job, error: jobError } = await supabase
       .from('optimization_jobs')
       .select('*, solver:solvers(*), dataset:datasets(*)')
       .eq('id', jobId)
-      .single()
+      .single();
 
     if (jobError || !job) {
-      throw new Error(jobError?.message || 'Job not found')
+      throw new Error(jobError?.message || 'Job not found');
     }
 
     // Estimate runtime
@@ -89,32 +98,32 @@ serve(async (req: Request) => {
           `Estimated runtime: ${estimatedRuntime} seconds`
         ]
       })
-      .eq('id', jobId)
+      .eq('id', jobId);
 
     // Download solver and dataset
     const { data: solverData, error: solverError } = await supabase.storage
       .from('solvers')
-      .download(job.solver.file_path)
+      .download(job.solver.file_path);
     if (solverError || !solverData) {
-      throw new Error(`Failed to download solver: ${solverError?.message}`)
+      throw new Error(`Failed to download solver: ${solverError?.message}`);
     }
-    const solverText = await solverData.text()
-    const solverBase64 = btoa(solverText)
+    const solverText = await solverData.text();
+    const solverBase64 = btoa(solverText);
 
     const { data: datasetData, error: datasetError } = await supabase.storage
       .from('datasets')
-      .download(job.dataset.file_path)
+      .download(job.dataset.file_path);
     if (datasetError || !datasetData) {
-      throw new Error(`Failed to download dataset: ${datasetError?.message}`)
+      throw new Error(`Failed to download dataset: ${datasetError?.message}`);
     }
-    const datasetBuffer = await datasetData.arrayBuffer()
+    const datasetBuffer = await datasetData.arrayBuffer();
     const datasetBase64 = btoa(
       String.fromCharCode(...new Uint8Array(datasetBuffer))
-    )
+    );
 
     // Call solver service with timeout
-    const solverServiceUrl = "http://solver_service:5000"
-    console.log('Calling solver service at:', solverServiceUrl)
+    const solverServiceUrl = "http://solver_service:5000";
+    console.log('Calling solver service at:', solverServiceUrl);
     
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), estimatedRuntime * 1500); // 50% extra time as buffer
@@ -134,23 +143,35 @@ serve(async (req: Request) => {
       clearTimeout(timeout);
 
       if (!resp.ok) {
-        const errorText = await resp.text()
-        throw new Error(`Solver service error: ${errorText}`)
+        const errorText = await resp.text();
+        throw new Error(`Solver service error: ${errorText}`);
       }
 
-      const solverResult = await resp.json()
+      const solverResult = await resp.json();
 
-      // Send email with results
+      // Prepare email data
+      const emailData = {
+        jobId,
+        status: 'COMPLETED',
+        parameters: job.parameters,
+        results: solverResult,
+        executionTime: `${estimatedRuntime} seconds`,
+        solver: {
+          name: job.solver.name,
+          description: job.solver.description
+        },
+        dataset: {
+          name: job.dataset.name,
+          description: job.dataset.description
+        }
+      };
+
+      // Send completion email with JSON results
       if (job.dataset.email) {
         await sendEmail(
           job.dataset.email,
           'Optimization Job Completed',
-          `
-          <h1>Your optimization job has completed!</h1>
-          <p>Job ID: ${jobId}</p>
-          <p>Best cost found: ${solverResult.solver_output?.best_cost || 'N/A'}</p>
-          <p>View full results in the application.</p>
-          `
+          emailData
         );
       }
 
@@ -162,9 +183,8 @@ serve(async (req: Request) => {
           results: solverResult,
           logs: [...(job.logs || []), 'Solver completed successfully']
         })
-        .eq('id', jobId)
+        .eq('id', jobId);
 
-      // Return success response with CORS headers
       return new Response(
         JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
         { 
@@ -173,7 +193,7 @@ serve(async (req: Request) => {
             'Content-Type': 'application/json' 
           } 
         }
-      )
+      );
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error(`Job timed out after ${estimatedRuntime} seconds`);
@@ -182,51 +202,48 @@ serve(async (req: Request) => {
     }
 
   } catch (error) {
-    console.error('Error in optimization:', error)
+    console.error('Error in optimization:', error);
 
-    // If we have a jobId, update job status and notify user
-    if (jobId) {
-      try {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        )
+    // Create a new Supabase client for error handling to avoid recursion
+    const errorClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-        // Fetch job details for email
-        const { data: job } = await supabase
-          .from('optimization_jobs')
-          .select('*, dataset:datasets(*)')
-          .eq('id', jobId)
-          .single()
+    try {
+      const { data: job } = await errorClient
+        .from('optimization_jobs')
+        .select('*, dataset:datasets(*)')
+        .eq('id', body?.jobId)
+        .single();
 
-        // Send failure email
-        if (job?.dataset?.email) {
-          await sendEmail(
-            job.dataset.email,
-            'Optimization Job Failed',
-            `
-            <h1>Your optimization job has failed</h1>
-            <p>Job ID: ${jobId}</p>
-            <p>Error: ${String(error)}</p>
-            <p>Please check the application for more details.</p>
-            `
-          );
-        }
-
-        await supabase
-          .from('optimization_jobs')
-          .update({
+      if (job?.dataset?.email) {
+        // Send failure email with error details
+        await sendEmail(
+          job.dataset.email,
+          'Optimization Job Failed',
+          {
+            jobId: body?.jobId,
             status: 'FAILED',
-            error_message: String(error),
-            logs: ['Error occurred during optimization:', String(error)]
-          })
-          .eq('id', jobId)
-      } catch (updateError) {
-        console.error('Error updating job status:', updateError)
+            error: String(error),
+            timestamp: new Date().toISOString()
+          }
+        );
       }
+
+      await errorClient
+        .from('optimization_jobs')
+        .update({
+          status: 'FAILED',
+          error_message: String(error),
+          logs: ['Error occurred during optimization:', String(error)]
+        })
+        .eq('id', body?.jobId);
+
+    } catch (updateError) {
+      console.error('Error updating job status:', updateError);
     }
 
-    // Return error response with CORS headers
     return new Response(
       JSON.stringify({ error: String(error) }),
       { 
@@ -236,6 +253,6 @@ serve(async (req: Request) => {
           'Content-Type': 'application/json' 
         }
       }
-    )
+    );
   }
-})
+});
