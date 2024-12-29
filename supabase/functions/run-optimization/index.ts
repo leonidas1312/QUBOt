@@ -29,7 +29,7 @@ async function sendEmail(to: string, subject: string, data: any) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Quantum Optimizer <optimizer@yourdomain.com>',
+        from: 'QUBOt <solver@qubot.opt>',
         to: [to],
         subject,
         html: htmlContent,
