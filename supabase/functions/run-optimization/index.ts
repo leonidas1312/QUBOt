@@ -1,14 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import * as numpy from "https://cdn.skypack.dev/@numpy/core";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-
 async function sendEmail(to: string, subject: string, data: any) {
+  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set, skipping email notification');
     return;
@@ -94,49 +94,27 @@ serve(async (req: Request) => {
       throw new Error(`Failed to download solver: ${solverError?.message}`);
     }
 
-    // Check solver file size (max 10MB)
-    if (solverData.size > 10 * 1024 * 1024) {
-      throw new Error('Solver file is too large (max 10MB)');
-    }
-
-    const solverText = await solverData.text();
-    const solverBase64 = btoa(solverText);
-
-    // Get a signed URL for the dataset
-    const { data: { signedUrl }, error: signedUrlError } = await supabase.storage
+    // Get dataset
+    const { data: datasetData, error: datasetError } = await supabase.storage
       .from('datasets')
-      .createSignedUrl(job.dataset.file_path, 3600); // 1 hour expiry
+      .download(job.dataset.file_path);
 
-    if (signedUrlError) {
-      throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
+    if (datasetError || !datasetData) {
+      throw new Error(`Failed to download dataset: ${datasetError?.message}`);
     }
 
-    // Call solver service using the public URL
-    const solverServiceUrl = "http://127.0.0.1:5000"; // Using loopback address
-    console.log('Calling solver service at:', solverServiceUrl);
+    // Convert dataset to array buffer
+    const arrayBuffer = await datasetData.arrayBuffer();
+    const quboMatrix = new Float64Array(arrayBuffer);
+
+    // Execute solver
+    const solverText = await solverData.text();
+    const solver = new Function('QUBO_matrix', 'parameters', solverText);
     
     try {
-      const resp = await fetch(solverServiceUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          solver: solverBase64,
-          dataset_url: signedUrl,
-          parameters: job.parameters
-        })
-      });
-
-      if (!resp.ok) {
-        const errorText = await resp.text();
-        console.error('Solver service error response:', errorText);
-        throw new Error(`Solver service error: ${errorText}`);
-      }
-
-      const solverResult = await resp.json();
-      console.log('Solver service response:', solverResult);
+      console.log('Executing solver with parameters:', job.parameters);
+      const result = await solver(quboMatrix, job.parameters);
+      console.log('Solver execution completed:', result);
 
       // Send completion email
       if (job.dataset.email) {
@@ -147,7 +125,7 @@ serve(async (req: Request) => {
             jobId,
             status: 'COMPLETED',
             parameters: job.parameters,
-            results: solverResult,
+            results: result,
             solver: {
               name: job.solver.name,
               description: job.solver.description
@@ -165,19 +143,19 @@ serve(async (req: Request) => {
         .from('optimization_jobs')
         .update({
           status: 'COMPLETED',
-          results: solverResult,
+          results: result,
           logs: [...(job.logs || []), 'Solver completed successfully']
         })
         .eq('id', jobId);
 
       return new Response(
-        JSON.stringify({ message: 'Job completed successfully', result: solverResult }),
+        JSON.stringify({ message: 'Job completed successfully', result }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
     } catch (solverError) {
-      console.error('Error calling solver service:', solverError);
-      throw new Error(`Failed to call solver service: ${solverError.message}`);
+      console.error('Error executing solver:', solverError);
+      throw new Error(`Failed to execute solver: ${solverError.message}`);
     }
 
   } catch (error) {
