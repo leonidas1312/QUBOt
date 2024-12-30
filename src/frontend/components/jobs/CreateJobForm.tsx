@@ -20,6 +20,9 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
     onJobCreated
   });
 
+  // Get the selected dataset name
+  const selectedDatasetName = datasets.find(d => d.id === selectedDataset)?.name || '';
+
   if (!session?.user?.id) {
     return (
       <div className="text-center p-4">
@@ -67,6 +70,7 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
           parameters={parameters}
           solverParameters={solvers.find(s => s.id === selectedSolver)?.solver_parameters || {}}
           onParameterChange={setParameters}
+          datasetName={selectedDatasetName}
         />
       )}
 
