@@ -1,80 +1,75 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-async function sendEmail(to: string, subject: string, data: any) {
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-  if (!RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set, skipping email notification');
-    return;
-  }
+interface OptimizationJob {
+  id: string;
+  solver_id: string;
+  dataset_id: string;
+  status: string;
+  parameters: any;
+  results: any;
+  error_message?: string;
+}
 
-  const htmlContent = `
-    <h1>${subject}</h1>
-    <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;">
-      ${JSON.stringify(data, null, 2)}
-    </pre>
-  `;
+// Create a Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: 'QUBOt <jonhkarystos@gmail.com>',
-        to: [to],
-        subject,
-        html: htmlContent,
-      }),
-    });
+async function updateJobStatus(jobId: string, status: string, results?: any, errorMessage?: string) {
+  const { error } = await supabase
+    .from('optimization_jobs')
+    .update({
+      status,
+      results,
+      error_message: errorMessage,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', jobId);
 
-    if (!res.ok) {
-      throw new Error(`Failed to send email: ${await res.text()}`);
-    }
-  } catch (error) {
-    console.error('Error sending email:', error);
+  if (error) {
+    console.error('Error updating job status:', error);
+    throw new Error(`Failed to update job status: ${error.message}`);
   }
 }
 
-async function updateJobStatus(supabase: any, jobId: string, status: string, message: string, results?: any) {
-  try {
-    const updateData: any = {
-      status,
-      logs: [message],
-    };
-    
-    if (results) {
-      updateData.results = results;
-    }
-    
-    if (status === 'FAILED') {
-      updateData.error_message = message;
-    }
-    
-    await supabase
-      .from('optimization_jobs')
-      .update(updateData)
-      .eq('id', jobId);
-      
-    console.log(`Job ${jobId} status updated to ${status}`);
-  } catch (error) {
-    console.error('Error updating job status:', error);
+async function getSolverAndDataset(solverId: string, datasetId: string) {
+  // Get solver details
+  const { data: solver, error: solverError } = await supabase
+    .from('solvers')
+    .select('*')
+    .eq('id', solverId)
+    .single();
+
+  if (solverError) {
+    throw new Error(`Failed to fetch solver: ${solverError.message}`);
   }
+
+  // Get dataset details
+  const { data: dataset, error: datasetError } = await supabase
+    .from('datasets')
+    .select('*')
+    .eq('id', datasetId)
+    .single();
+
+  if (datasetError) {
+    throw new Error(`Failed to fetch dataset: ${datasetError.message}`);
+  }
+
+  return { solver, dataset };
 }
 
 async function callSolverService(jobData: any) {
   const solverServiceUrl = Deno.env.get('SOLVER_SERVICE_URL') || 'http://solver_service-1:5000/solve';
-  console.log('Attempting to call solver service at:', solverServiceUrl);
+  console.log('Attempting to call solver service at:', solverServiceUrl + '/solve');
   
   try {
-    const response = await fetch(solverServiceUrl, {
+    const response = await fetch(solverServiceUrl + '/solve', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,12 +77,11 @@ async function callSolverService(jobData: any) {
       },
       body: JSON.stringify({
         jobId: jobData.id,
-        solverId: jobData.solver.id,
+        supabaseUrl: Deno.env.get('SUPABASE_URL'),
+        supabaseKey: Deno.env.get('SUPABASE_ANON_KEY'),
         solverPath: jobData.solver.file_path,
         datasetPath: jobData.dataset.file_path,
-        parameters: jobData.parameters,
-        supabaseUrl: Deno.env.get('SUPABASE_URL'),
-        supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        parameters: jobData.parameters
       }),
     });
 
@@ -106,119 +100,79 @@ async function callSolverService(jobData: any) {
   }
 }
 
-serve(async (req: Request) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestData = await req.json();
-    const jobId = requestData.jobId;
-    
-    if (!jobId) {
-      throw new Error("jobId is missing from request body");
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }),
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Processing job ${jobId}`);
+    // Parse the request body
+    const requestData = await req.json();
+    const { jobId } = requestData;
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    if (!jobId) {
+      throw new Error('Job ID is required');
+    }
 
-    // Fetch job details
+    console.log('Processing optimization job:', jobId);
+
+    // Get job details
     const { data: job, error: jobError } = await supabase
       .from('optimization_jobs')
-      .select('*, solver:solvers(*), dataset:datasets(*)')
+      .select('*')
       .eq('id', jobId)
       .single();
 
     if (jobError || !job) {
-      throw new Error(jobError?.message || 'Job not found');
+      throw new Error(`Failed to fetch job: ${jobError?.message || 'Job not found'}`);
     }
 
-    // Update job to RUNNING
-    await updateJobStatus(supabase, jobId, 'RUNNING', 'Starting optimization...');
+    // Update job status to PROCESSING
+    await updateJobStatus(jobId, 'PROCESSING');
 
-    try {
-      const result = await callSolverService(job);
-      console.log('Solver execution completed:', result);
+    // Get solver and dataset details
+    const { solver, dataset } = await getSolverAndDataset(job.solver_id, job.dataset_id);
 
-      // Send completion email
-      if (job.dataset.email) {
-        await sendEmail(
-          job.dataset.email,
-          'Optimization Job Completed',
-          {
-            jobId,
-            status: 'COMPLETED',
-            parameters: job.parameters,
-            results: result,
-            solver: {
-              name: job.solver.name,
-              description: job.solver.description
-            },
-            dataset: {
-              name: job.dataset.name,
-              description: job.dataset.description
-            }
-          }
-        );
-      }
+    // Call solver service
+    const result = await callSolverService({
+      id: jobId,
+      solver,
+      dataset,
+      parameters: job.parameters
+    });
 
-      // Update job with results
-      await updateJobStatus(supabase, jobId, 'COMPLETED', 'Solver completed successfully', result);
+    // Update job with results
+    await updateJobStatus(jobId, 'COMPLETED', result);
 
-      return new Response(
-        JSON.stringify({ message: 'Job completed successfully', result }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } catch (error) {
-      throw new Error(`Failed to execute solver: ${error.message}`);
-    }
+    return new Response(
+      JSON.stringify({ message: 'Job processed successfully', jobId }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
-    console.error('Error in optimization:', error);
+    console.error('Error processing optimization job:', error);
 
+    // If we have a jobId in the error context, update its status
     try {
-      const errorClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-
-      if (!requestData?.jobId) {
-        throw new Error('No job ID available for error handling');
+      const requestData = await req.json();
+      if (requestData.jobId) {
+        await updateJobStatus(requestData.jobId, 'FAILED', null, error.message);
       }
-
-      const { data: job } = await errorClient
-        .from('optimization_jobs')
-        .select('*, dataset:datasets(*)')
-        .eq('id', requestData.jobId)
-        .single();
-
-      if (job?.dataset?.email) {
-        await sendEmail(
-          job.dataset.email,
-          'Optimization Job Failed',
-          {
-            jobId: requestData.jobId,
-            status: 'FAILED',
-            error: String(error),
-            timestamp: new Date().toISOString()
-          }
-        );
-      }
-
-      await updateJobStatus(errorClient, requestData.jobId, 'FAILED', String(error));
-
-    } catch (updateError) {
-      console.error('Error updating job status:', updateError);
+    } catch (e) {
+      console.error('Failed to update job status after error:', e);
     }
 
     return new Response(
-      JSON.stringify({ error: String(error) }),
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
