@@ -4,6 +4,7 @@ import os
 from supabase import create_client
 import importlib.util
 import sys
+import tempfile
 
 app = Flask(__name__)
 
