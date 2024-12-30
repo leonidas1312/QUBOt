@@ -1,3 +1,4 @@
+import inspect
 from flask import Flask, request, jsonify
 import numpy as np
 import os
@@ -6,12 +7,15 @@ import importlib.util
 import sys
 import tempfile
 import logging
+import traceback
+
 
 app = Flask(__name__)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def download_file(supabase, bucket: str, path: str):
     """Download file from Supabase storage and save it to a temporary file."""
@@ -31,6 +35,7 @@ def download_file(supabase, bucket: str, path: str):
     except Exception as e:
         logger.error(f"Error downloading file '{path}' from bucket '{bucket}': {str(e)}")
         raise
+
 
 @app.route('/solve', methods=['POST'])
 def solve():
@@ -79,12 +84,45 @@ def solve():
             spec.loader.exec_module(solver_module)
             logger.info("Solver module loaded successfully.")
 
-            # Execute the solver
+            # Extract parameters
             parameters = data.get('parameters', {})
-            logger.info(f"Executing solver with parameters: {parameters}")
-            result = solver_module.solve(qubo_matrix, parameters)
+            logger.info(f"Received parameters: {parameters}")
+
+            # Introspect the solve function
+            if not hasattr(solver_module, 'solve'):
+                raise AttributeError("The solver module does not have a 'solve' function.")
+
+            solve_func = solver_module.solve
+            sig = inspect.signature(solve_func)
+            logger.info(f"'solve' function signature: {sig}")
+
+            # Prepare arguments
+            bound_args = {}
+            for name, param in sig.parameters.items():
+                if name == 'qubo_matrix':
+                    bound_args['qubo_matrix'] = qubo_matrix
+                else:
+                    if name in parameters:
+                        # Attempt to convert parameter to the expected type
+                        expected_type = param.annotation if param.annotation != inspect.Parameter.empty else str
+                        try:
+                            bound_args[name] = expected_type(parameters[name])
+                        except (ValueError, TypeError):
+                            logger.error(f"Parameter '{name}' could not be converted to {expected_type}")
+                            raise ValueError(f"Parameter '{name}' could not be converted to {expected_type}")
+                    elif param.default != inspect.Parameter.empty:
+                        # Use default value
+                        bound_args[name] = param.default
+                    else:
+                        # Missing required parameter
+                        raise ValueError(f"Missing required parameter: {name}")
+
+            # Execute the solve function with bound arguments
+            logger.info(f"Executing 'solve' with arguments: {bound_args}")
+            result = solve_func(**bound_args)
             logger.info("Solver executed successfully.")
 
+            # Ensure the result is JSON serializable
             return jsonify(result)
 
         finally:
@@ -97,7 +135,9 @@ def solve():
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
