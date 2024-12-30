@@ -70,7 +70,7 @@ async function updateJobStatus(supabase: any, jobId: string, status: string, mes
 }
 
 async function callSolverService(jobData: any) {
-  const solverServiceUrl = 'http://solver_service-1:5000/solve';
+  const solverServiceUrl = Deno.env.get('SOLVER_SERVICE_URL') || 'http://solver_service-1:5000/solve';
   console.log('Attempting to call solver service at:', solverServiceUrl);
   
   try {
@@ -78,6 +78,7 @@ async function callSolverService(jobData: any) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify({
         jobId: jobData.id,
@@ -92,10 +93,13 @@ async function callSolverService(jobData: any) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Solver service error response:', errorText);
       throw new Error(`Solver service responded with status ${response.status}: ${errorText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('Solver service successful response:', result);
+    return result;
   } catch (error) {
     console.error('Error calling solver service:', error);
     throw new Error(`Failed to call solver service: ${error.message}`);
