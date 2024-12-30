@@ -6,22 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface OptimizationJob {
-  id: string;
-  solver_id: string;
-  dataset_id: string;
-  status: string;
-  parameters: any;
-  results: any;
-  error_message?: string;
-}
-
 // Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function updateJobStatus(jobId: string, status: string, results?: any, errorMessage?: string) {
+async function updateJobStatus(jobId: string, status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED', results?: any, errorMessage?: string) {
+  console.log(`Updating job ${jobId} status to ${status}`);
   const { error } = await supabase
     .from('optimization_jobs')
     .update({
@@ -65,11 +56,15 @@ async function getSolverAndDataset(solverId: string, datasetId: string) {
 }
 
 async function callSolverService(jobData: any) {
-  const solverServiceUrl = Deno.env.get('SOLVER_SERVICE_URL') || 'http://solver_service-1:5000/solve';
-  console.log('Attempting to call solver service at:', solverServiceUrl + '/solve');
+  const solverServiceUrl = Deno.env.get('SOLVER_SERVICE_URL');
+  if (!solverServiceUrl) {
+    throw new Error('SOLVER_SERVICE_URL environment variable is not set');
+  }
+  
+  console.log('Attempting to call solver service at:', solverServiceUrl);
   
   try {
-    const response = await fetch(solverServiceUrl + '/solve', {
+    const response = await fetch(`${solverServiceUrl}/solve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -107,17 +102,8 @@ serve(async (req) => {
   }
 
   try {
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Parse the request body
-    const requestData = await req.json();
-    const { jobId } = requestData;
+    const requestBody = await req.clone().json();
+    const { jobId } = requestBody;
 
     if (!jobId) {
       throw new Error('Job ID is required');
@@ -136,8 +122,8 @@ serve(async (req) => {
       throw new Error(`Failed to fetch job: ${jobError?.message || 'Job not found'}`);
     }
 
-    // Update job status to PROCESSING
-    await updateJobStatus(jobId, 'PROCESSING');
+    // Update job status to RUNNING (not PROCESSING)
+    await updateJobStatus(jobId, 'RUNNING');
 
     // Get solver and dataset details
     const { solver, dataset } = await getSolverAndDataset(job.solver_id, job.dataset_id);
@@ -163,9 +149,9 @@ serve(async (req) => {
 
     // If we have a jobId in the error context, update its status
     try {
-      const requestData = await req.json();
-      if (requestData.jobId) {
-        await updateJobStatus(requestData.jobId, 'FAILED', null, error.message);
+      const requestBody = await req.json();
+      if (requestBody.jobId) {
+        await updateJobStatus(requestBody.jobId, 'FAILED', null, error.message);
       }
     } catch (e) {
       console.error('Failed to update job status after error:', e);
