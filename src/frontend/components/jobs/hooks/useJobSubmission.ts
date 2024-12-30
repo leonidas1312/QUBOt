@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSession } from "@supabase/auth-helpers-react";
 
 interface UseJobSubmissionProps {
   selectedDataset: string;
@@ -11,6 +12,7 @@ interface UseJobSubmissionProps {
 export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated }: UseJobSubmissionProps) => {
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const session = useSession();
 
   const handleSubmit = async () => {
     if (!selectedDataset || !selectedSolver) {
@@ -18,16 +20,22 @@ export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated
       return;
     }
 
+    if (!session?.user?.id) {
+      toast.error("You must be logged in to create a job");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Create the job
+      // Create the job with user_id
       const { data: job, error: jobError } = await supabase
         .from("optimization_jobs")
         .insert({
           solver_id: selectedSolver,
           dataset_id: selectedDataset,
           parameters,
-          status: 'PENDING'
+          status: 'PENDING',
+          user_id: session.user.id  // Add the user_id here
         })
         .select()
         .single();
