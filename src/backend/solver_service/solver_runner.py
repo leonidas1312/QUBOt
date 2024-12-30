@@ -1,14 +1,13 @@
 from flask import Flask, request, jsonify
 import numpy as np
 import os
-import tempfile
-from supabase import create_client, Client
+from supabase import create_client
 import importlib.util
 import sys
 
 app = Flask(__name__)
 
-def download_file_in_chunks(supabase: Client, bucket: str, path: str, chunk_size=1024*1024):
+def download_file_in_chunks(supabase, bucket: str, path: str, chunk_size=1024*1024):
     """Download file from Supabase storage in chunks"""
     try:
         response = supabase.storage.from_(bucket).download(path)
@@ -28,10 +27,11 @@ def solve():
     try:
         data = request.json
         
-        # Initialize Supabase client
-        supabase_url = data.get('supabaseUrl')
-        supabase_key = data.get('supabaseKey')
-        supabase = create_client(supabase_url, supabase_key)
+        # Initialize Supabase client without proxy
+        supabase = create_client(
+            data.get('supabaseUrl'),
+            data.get('supabaseKey')
+        )
         
         # Download solver code
         solver_path = data.get('solverPath')
