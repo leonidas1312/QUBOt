@@ -1,10 +1,4 @@
-fastapi
-uvicorn
+flask
 numpy
-pennylane
-gurobipy
-torch
-websockets
-celery
-redis
-python-multipart
+supabase
+python-dotenv

@@ -1,4 +1,0 @@
-flask
-numpy
-supabase
-python-dotenv

@@ -1,45 +1,4 @@
 services:
-  redis:
-    image: redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - app-network
-
-  backend:
-    build:
-      context: ./src/backend
-      dockerfile: backend_dockerfile
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./src/backend:/app
-    ports:
-      - "8000:8000"
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-    networks:
-      - app-network
-
-  celery_worker:
-    build:
-      context: ./src/backend
-      dockerfile: backend_dockerfile
-    command: celery -A tasks.celery worker --loglevel=info
-    volumes:
-      - ./src/backend:/app
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-      - backend
-    networks:
-      - app-network
 
   frontend:
     build:
@@ -53,13 +12,13 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
-      - backend
+      - solver_service
     networks:
       - app-network
 
   solver_service:
     build:
-      context: ./src/backend/solver_service
+      context: ./src/backend
       dockerfile: solver_service.dockerfile
     ports:
       - "5000:5000"
@@ -71,9 +30,6 @@ services:
           memory: 8G
         reservations:
           memory: 2G
-    depends_on:
-      - backend
-      - redis
     env_file:
       - .env
     environment:
@@ -85,6 +41,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  redis_data:
