@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Job {
   id: string;
@@ -78,6 +78,37 @@ export const JobManager = () => {
     return channel;
   };
 
+  const handleDownloadResults = (job: Job) => {
+    if (!job.results) {
+      toast.error('No results available for this job');
+      return;
+    }
+
+    const resultsText = `
+Optimization Results for Job ${job.id}
+=====================================
+
+Parameters:
+${JSON.stringify(job.parameters, null, 2)}
+
+Results:
+${JSON.stringify(job.results, null, 2)}
+
+Logs:
+${job.logs?.join('\n') || 'No logs available'}
+    `.trim();
+
+    const blob = new Blob([resultsText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `optimization_results_${job.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   const getStatusColor = (status: Job['status']) => {
     switch (status) {
       case 'COMPLETED':
@@ -123,9 +154,22 @@ export const JobManager = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Job {job.id.slice(0, 8)}</span>
-                <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(job.status)}`}>
-                  {job.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {job.status === 'COMPLETED' && job.results && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadResults(job)}
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Results
+                    </Button>
+                  )}
+                  <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(job.status)}`}>
+                    {job.status}
+                  </span>
+                </div>
               </CardTitle>
               <CardDescription>
                 Created at: {new Date(job.created_at).toLocaleString()}
@@ -139,14 +183,6 @@ export const JobManager = () => {
               )}
               {job.status === 'RUNNING' && (
                 <Progress value={getProgressValue(job.status)} className="mb-4" />
-              )}
-              {job.results && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Results:</h3>
-                  <pre className="bg-gray-100 p-4 rounded overflow-x-auto">
-                    {JSON.stringify(job.results, null, 2)}
-                  </pre>
-                </div>
               )}
               {job.logs && job.logs.length > 0 && (
                 <div className="space-y-2 mt-4">
