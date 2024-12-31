@@ -69,7 +69,12 @@ def solve(qubo_matrix, constant, initial_temperature=1000, cooling_rate=0.99, ma
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    return best_solution, best_cost, costs_per_iteration, elapsed_time`;
+    return {
+        "best_solution": best_solution.tolist(),          # Convert NumPy array to list
+        "best_cost": best_cost,                           # Float
+        "costs_per_iteration": costs_per_iteration,       # List of floats
+        "time_elapsed": elapsed_time                      # Float (seconds)
+    }`;
 
 export const SolverExample = () => {
   /**

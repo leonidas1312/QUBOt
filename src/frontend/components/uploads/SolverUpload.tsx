@@ -1,3 +1,5 @@
+// SolverUpload.tsx
+
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ export const SolverUpload = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [inputs, setInputs] = useState<Parameter[]>([]);
   const [outputs, setOutputs] = useState<Parameter[]>([]);
-  const [guidelineValidation, setGuidelineValidation] = useState(null);
+  const [guidelineValidation, setGuidelineValidation] = useState<any>(null);
   const [showInputDialog, setShowInputDialog] = useState(false);
   const [showOutputDialog, setShowOutputDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +200,7 @@ export const SolverUpload = () => {
                   variant="outline"
                   onClick={() => setShowOutputDialog(true)}
                 >
-                  <Info className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                   Configure Output Parameters ({outputs.length})
                 </Button>
               )}

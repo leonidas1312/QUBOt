@@ -1,4 +1,3 @@
-import inspect
 from flask import Flask, request, jsonify
 import numpy as np
 import os
@@ -8,7 +7,7 @@ import sys
 import tempfile
 import logging
 import traceback
-
+import inspect
 
 app = Flask(__name__)
 
@@ -96,25 +95,17 @@ def solve():
             sig = inspect.signature(solve_func)
             logger.info(f"'solve' function signature: {sig}")
 
-            # Prepare arguments
+            # Prepare arguments without type conversion
             bound_args = {}
             for name, param in sig.parameters.items():
                 if name == 'qubo_matrix':
                     bound_args['qubo_matrix'] = qubo_matrix
                 else:
                     if name in parameters:
-                        # Attempt to convert parameter to the expected type
-                        expected_type = param.annotation if param.annotation != inspect.Parameter.empty else str
-                        try:
-                            bound_args[name] = expected_type(parameters[name])
-                        except (ValueError, TypeError):
-                            logger.error(f"Parameter '{name}' could not be converted to {expected_type}")
-                            raise ValueError(f"Parameter '{name}' could not be converted to {expected_type}")
+                        bound_args[name] = parameters[name]  # Assume already correctly typed
                     elif param.default != inspect.Parameter.empty:
-                        # Use default value
                         bound_args[name] = param.default
                     else:
-                        # Missing required parameter
                         raise ValueError(f"Missing required parameter: {name}")
 
             # Execute the solve function with bound arguments
