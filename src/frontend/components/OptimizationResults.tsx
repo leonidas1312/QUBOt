@@ -1,5 +1,6 @@
-// OptimizationResults.tsx
 import { Card } from "/components/ui/card";
+import { Button } from "/components/ui/button";
+import { Download } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface OptimizationResultsProps {
@@ -34,11 +35,35 @@ export const OptimizationResults = ({ results }: OptimizationResultsProps) => {
 
   const { progress_rl_costs, progress_opt_costs, best_cost, best_bitstring, cost_values, time_per_iteration } = results.result;
 
-  // Format bitstring for display (chunks of 32 bits)
-  const formattedBitstring = best_bitstring
-    .join('')
-    .match(/.{1,32}/g)
-    ?.join('\n') || '';
+  const handleDownload = () => {
+    // Format the results as text
+    const resultsText = `
+Optimization Results
+===================
+
+Best Cost: ${best_cost.toFixed(2)}
+
+Best Solution (Bitstring):
+${best_bitstring.join('')}
+
+Cost Values:
+${cost_values.map((cost, index) => `Iteration ${index + 1}: ${cost}`).join('\n')}
+
+Time per Iteration:
+${time_per_iteration.map((time, index) => `Iteration ${index + 1}: ${time}ms`).join('\n')}
+    `.trim();
+
+    // Create blob and download
+    const blob = new Blob([resultsText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'optimization_results.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
 
   // Prepare data for the optimization progress chart
   const optChartData = progress_opt_costs.map((cost, index) => ({
@@ -60,20 +85,12 @@ export const OptimizationResults = ({ results }: OptimizationResultsProps) => {
   return (
     <Card className="p-6 w-full max-w-2xl mx-auto">
       <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Optimization Results</h3>
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Best Cost</p>
-              <p className="font-medium">{best_cost.toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Best Solution (Bitstring)</p>
-              <pre className="font-mono text-xs bg-muted p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
-                {formattedBitstring}
-              </pre>
-            </div>
-          </div>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Optimization Results</h3>
+          <Button onClick={handleDownload} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Download Results
+          </Button>
         </div>
 
         <div className="h-[400px]">
