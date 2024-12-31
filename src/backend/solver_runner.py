@@ -8,6 +8,7 @@ import tempfile
 import logging
 import traceback
 import inspect
+import subprocess
 
 app = Flask(__name__)
 
@@ -36,8 +37,33 @@ def download_file(supabase, bucket: str, path: str):
         raise
 
 
+def install_requirements(requirements_path: str):
+    """Install Python packages from requirements.txt in a virtual environment."""
+    try:
+        logger.info(f"Creating virtual environment for solver")
+        venv_path = tempfile.mkdtemp()
+        subprocess.run([sys.executable, "-m", "venv", venv_path], check=True)
+        
+        # Get path to pip in virtual environment
+        if os.name == 'nt':  # Windows
+            pip_path = os.path.join(venv_path, 'Scripts', 'pip')
+        else:  # Unix/Linux/MacOS
+            pip_path = os.path.join(venv_path, 'bin', 'pip')
+        
+        logger.info(f"Installing requirements from {requirements_path}")
+        subprocess.run([pip_path, "install", "-r", requirements_path], check=True)
+        
+        return venv_path
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error installing requirements: {str(e)}")
+        raise
+
+
 @app.route('/solve', methods=['POST'])
 def solve():
+    temp_paths = []  # Keep track of temporary files to clean up
+    venv_path = None  # Keep track of virtual environment to clean up
+    
     try:
         data = request.json
         logger.info(f"Received data: {data}")
@@ -58,10 +84,20 @@ def solve():
         # Download solver code
         solver_path = data.get('solverPath')
         temp_solver_path = download_file(supabase, 'solvers', solver_path)
+        temp_paths.append(temp_solver_path)
+
+        # Download requirements.txt
+        requirements_path = f"{solver_path}_requirements.txt"
+        temp_requirements_path = download_file(supabase, 'solvers', requirements_path)
+        temp_paths.append(temp_requirements_path)
+
+        # Create virtual environment and install requirements
+        venv_path = install_requirements(temp_requirements_path)
 
         # Download dataset
         dataset_path = data.get('datasetPath')
         temp_dataset_path = download_file(supabase, 'datasets', dataset_path)
+        temp_paths.append(temp_dataset_path)
 
         try:
             # Load the QUBO matrix
@@ -102,7 +138,7 @@ def solve():
                     bound_args['qubo_matrix'] = qubo_matrix
                 else:
                     if name in parameters:
-                        bound_args[name] = parameters[name]  # Assume already correctly typed
+                        bound_args[name] = parameters[name]
                     elif param.default != inspect.Parameter.empty:
                         bound_args[name] = param.default
                     else:
@@ -118,11 +154,17 @@ def solve():
 
         finally:
             # Clean up temporary files
-            logger.info(f"Cleaning up temporary files: '{temp_solver_path}', '{temp_dataset_path}'")
-            for temp_path in [temp_solver_path, temp_dataset_path]:
+            logger.info("Cleaning up temporary files and virtual environment")
+            for temp_path in temp_paths:
                 if os.path.exists(temp_path):
                     os.unlink(temp_path)
                     logger.info(f"Deleted temporary file '{temp_path}'")
+            
+            # Clean up virtual environment
+            if venv_path and os.path.exists(venv_path):
+                import shutil
+                shutil.rmtree(venv_path)
+                logger.info(f"Deleted virtual environment at '{venv_path}'")
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
