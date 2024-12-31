@@ -1,5 +1,3 @@
-// SolverUpload.tsx
-
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,10 +11,12 @@ import { SolverGuidelines } from "./SolverGuidelines";
 import { Parameter, extractParameters, extractOutputs } from "./solverUtils";
 import { validateGuidelines } from "./guidelineValidation";
 import { ParameterDescriptionDialog } from "./ParameterDescriptionDialog";
-import { Shuffle, Plus, Info } from "lucide-react";
+import { RequirementsDialog } from "./RequirementsDialog";
+import { Shuffle, Plus, Info, FileText } from "lucide-react";
 
 export const SolverUpload = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [requirementsFile, setRequirementsFile] = useState<File | null>(null);
   const [solverName, setSolverName] = useState("");
   const [description, setDescription] = useState("");
   const [paperLink, setPaperLink] = useState("");
@@ -26,6 +26,7 @@ export const SolverUpload = () => {
   const [guidelineValidation, setGuidelineValidation] = useState<any>(null);
   const [showInputDialog, setShowInputDialog] = useState(false);
   const [showOutputDialog, setShowOutputDialog] = useState(false);
+  const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const session = useSession();
 
@@ -79,12 +80,11 @@ export const SolverUpload = () => {
       return;
     }
 
-    if (!file || !description || !solverName) {
-      toast.error("Please provide a file, name, and description.");
+    if (!file || !description || !solverName || !requirementsFile) {
+      toast.error("Please provide a solver file, name, description, and requirements.txt file.");
       return;
     }
 
-    // Check if guidelines are met
     if (!guidelineValidation || !Object.values(guidelineValidation).every(Boolean)) {
       toast.error("Your solver must meet all guidelines before uploading.");
       return;
@@ -93,21 +93,30 @@ export const SolverUpload = () => {
     setIsProcessing(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
+      // Upload solver file
+      const solverFileExt = file.name.split(".").pop();
+      const solverFilePath = `${crypto.randomUUID()}.${solverFileExt}`;
+      
+      const { error: solverUploadError } = await supabase.storage
         .from("solvers")
-        .upload(filePath, file);
+        .upload(solverFilePath, file);
 
-      if (uploadError) throw uploadError;
+      if (solverUploadError) throw solverUploadError;
+
+      // Upload requirements file
+      const requirementsFilePath = `${solverFilePath}_requirements.txt`;
+      const { error: requirementsUploadError } = await supabase.storage
+        .from("solvers")
+        .upload(requirementsFilePath, requirementsFile);
+
+      if (requirementsUploadError) throw requirementsUploadError;
 
       const { error: dbError } = await supabase
         .from("solvers")
         .insert({
           name: solverName,
           description,
-          file_path: filePath,
+          file_path: solverFilePath,
           solver_parameters: inputs,
           solver_outputs: outputs,
           paper_link: paperLink || null,
@@ -119,6 +128,7 @@ export const SolverUpload = () => {
 
       toast.success("Solver uploaded successfully!");
       setFile(null);
+      setRequirementsFile(null);
       setSolverName("");
       setDescription("");
       setPaperLink("");
@@ -184,6 +194,15 @@ export const SolverUpload = () => {
 
           {file && (
             <div className="flex flex-wrap gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowRequirementsDialog(true)}
+                className={requirementsFile ? "bg-green-50" : ""}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {requirementsFile ? "Requirements.txt Added" : "Add Requirements.txt"}
+              </Button>
               {inputs.length > 0 && (
                 <Button
                   type="button"
@@ -212,7 +231,7 @@ export const SolverUpload = () => {
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isProcessing || !guidelineValidation || !Object.values(guidelineValidation).every(Boolean)}
+            disabled={isProcessing || !guidelineValidation || !Object.values(guidelineValidation).every(Boolean) || !requirementsFile}
           >
             {isProcessing ? "Uploading..." : "Upload Solver"}
           </Button>
@@ -233,6 +252,12 @@ export const SolverUpload = () => {
         parameters={outputs}
         onParametersChange={setOutputs}
         title="Configure Output Parameters"
+      />
+
+      <RequirementsDialog
+        isOpen={showRequirementsDialog}
+        onClose={() => setShowRequirementsDialog(false)}
+        onRequirementsChange={setRequirementsFile}
       />
     </div>
   );
