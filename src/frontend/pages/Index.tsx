@@ -9,7 +9,7 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col items-center justify-center text-center px-4 py-12 bg-gradient-to-br from-purple-700 via-orange-500 to-green-500">
       <div className="max-w-4xl mx-auto space-y-8">
         <h1 className="text-6xl font-bold text-white tracking-tight">
-          The AI Code Editor
+          Simplifying Optimization
         </h1>
         
         <p className="text-xl text-white/90 max-w-2xl mx-auto">

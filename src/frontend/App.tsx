@@ -23,6 +23,7 @@ import Datasets from "./pages/Datasets"
 import Playground from "./pages/Playground"
 import Community from "./pages/Community"
 import Profile from "./pages/Profile"
+import Home from "./pages/Index"
 import OldHome from "./pages/OldHome"
 
 const queryClient = new QueryClient()
@@ -152,8 +153,7 @@ const App = () => {
               {session && <UserMenu />}
               <main className="flex-1">
                 <Routes>
-                  <Route path="/" element={session ? <Navigate to="/playground" /> : <Login />} />
-                  <Route path="/old-home" element={<OldHome />} />
+                  <Route path="/" element={<Home />} />
                   <Route path="/solvers" element={<Solvers />} />
                   <Route path="/datasets" element={<Datasets />} />
                   <Route 
