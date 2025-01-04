@@ -62,44 +62,52 @@ const Profile = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p><strong>Email:</strong> {profile?.email}</p>
-            <p><strong>Username:</strong> {profile?.username}</p>
-            {profile?.github_username && (
-              <p><strong>GitHub:</strong> {profile.github_username}</p>
+    <div className="min-h-screen w-full bg-gradient-to-br from-pink-700/10 via-purple-500/10 to-indigo-500/10">
+      <div className="container mx-auto py-8 px-4 space-y-8">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-700 to-purple-500">
+            User Profile
+          </h1>
+        </div>
+        
+        <Card className="mb-8 backdrop-blur-sm bg-white/50">
+          <CardHeader>
+            <CardTitle>Profile Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p><strong>Email:</strong> {profile?.email}</p>
+              <p><strong>Username:</strong> {profile?.username}</p>
+              {profile?.github_username && (
+                <p><strong>GitHub:</strong> {profile.github_username}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="solvers" className="w-full">
+          <TabsList>
+            <TabsTrigger value="solvers">My Solvers</TabsTrigger>
+            <TabsTrigger value="datasets">My Datasets</TabsTrigger>
+          </TabsList>
+          <TabsContent value="solvers">
+            {solversLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <ItemGrid items={userSolvers || []} type="solver" />
             )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="solvers" className="w-full">
-        <TabsList>
-          <TabsTrigger value="solvers">My Solvers</TabsTrigger>
-          <TabsTrigger value="datasets">My Datasets</TabsTrigger>
-        </TabsList>
-        <TabsContent value="solvers">
-          {solversLoading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : (
-            <ItemGrid items={userSolvers || []} type="solver" />
-          )}
-        </TabsContent>
-        <TabsContent value="datasets">
-          {datasetsLoading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : (
-            <ItemGrid items={userDatasets || []} type="dataset" />
-          )}
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+          <TabsContent value="datasets">
+            {datasetsLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <ItemGrid items={userDatasets || []} type="dataset" />
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default Profile
+export default Profile;
