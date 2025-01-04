@@ -1,9 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Play, Video } from "lucide-react";
+import { Video, LogIn } from "lucide-react";
+import { useSession } from "@supabase/auth-helpers-react";
+import { useEffect } from "react";
 
 const Index = () => {
   const navigate = useNavigate();
+  const session = useSession();
+
+  // Redirect authenticated users to playground
+  useEffect(() => {
+    if (session) {
+      navigate('/playground');
+    }
+  }, [session, navigate]);
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center text-center px-4 py-12 bg-gradient-to-br from-purple-700 via-orange-500 to-green-500">
@@ -30,12 +40,12 @@ const Index = () => {
           </Button>
 
           <Button
-            onClick={() => navigate('/playground')}
+            onClick={() => navigate('/login')}
             size="lg"
             className="bg-black text-white hover:bg-black/80"
           >
-            <Play className="mr-2 h-4 w-4" />
-            Try the Playground
+            <LogIn className="mr-2 h-4 w-4" />
+            Sign In
           </Button>
         </div>
       </div>
