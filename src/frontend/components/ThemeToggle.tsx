@@ -12,6 +12,18 @@ export function ThemeToggle() {
     setMounted(true)
   }, [])
 
+  // Update the HTML class when theme changes
+  useEffect(() => {
+    const root = window.document.documentElement
+    root.classList.remove('light', 'dark')
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      root.classList.add(systemTheme)
+    } else {
+      root.classList.add(theme || 'light')
+    }
+  }, [theme])
+
   if (!mounted) return null
 
   return (
