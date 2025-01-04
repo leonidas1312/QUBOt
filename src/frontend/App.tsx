@@ -2,7 +2,7 @@ import { Toaster } from "/components/ui/toaster"
 import { Toaster as Sonner } from "/components/ui/sonner"
 import { TooltipProvider } from "/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Link } from "react-router-dom"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react"
@@ -152,6 +152,16 @@ const App = () => {
             <SidebarProvider>
               <div className="flex min-h-screen w-full">
                 {session && <AppSidebar />}
+                <Link 
+                  to="/" 
+                  className="fixed top-4 left-4 z-50 flex items-center space-x-2 text-xl font-bold"
+                >
+                  <img 
+                    src="/lovable-uploads/14b5a50c-26dc-4bd0-8713-91e805c48144.png" 
+                    alt="Logo" 
+                    className="h-8 w-auto"
+                  />
+                </Link>
                 {session && <UserMenu />}
                 <ThemeToggle />
                 <main className="flex-1">
