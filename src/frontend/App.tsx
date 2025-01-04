@@ -7,6 +7,8 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ThemeProvider } from "next-themes"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +26,6 @@ import Playground from "./pages/Playground"
 import Community from "./pages/Community"
 import Profile from "./pages/Profile"
 import Home from "./pages/Index"
-import OldHome from "./pages/OldHome"
 
 const queryClient = new QueryClient()
 
@@ -143,43 +144,46 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              {session && <AppSidebar />}
-              {session && <UserMenu />}
-              <main className="flex-1">
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/solvers" element={<Solvers />} />
-                  <Route path="/datasets" element={<Datasets />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route 
-                    path="/playground" 
-                    element={
-                      <ProtectedRoute>
-                        <Playground />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route path="/community" element={<Community />} />
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Routes>
-              </main>
-            </div>
-          </SidebarProvider>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="system" enableSystem>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <SidebarProvider>
+              <div className="flex min-h-screen w-full">
+                {session && <AppSidebar />}
+                {session && <UserMenu />}
+                <ThemeToggle />
+                <main className="flex-1">
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/solvers" element={<Solvers />} />
+                    <Route path="/datasets" element={<Datasets />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route 
+                      path="/playground" 
+                      element={
+                        <ProtectedRoute>
+                          <Playground />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route path="/community" element={<Community />} />
+                    <Route 
+                      path="/profile" 
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      } 
+                    />
+                  </Routes>
+                </main>
+              </div>
+            </SidebarProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
