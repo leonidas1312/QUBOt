@@ -19,12 +19,12 @@ const Login = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
-      {/* Colorful gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-700/20 via-orange-500/20 to-green-500/20" />
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-700/10 via-orange-500/10 to-green-500/10 animate-gradient-xy" />
       
-      {/* Decorative circles */}
-      <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-purple-500/20 blur-3xl" />
-      <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-orange-500/20 blur-3xl" />
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-full filter blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-blue-500/30 to-green-500/30 rounded-full filter blur-3xl transform -translate-x-1/2 translate-y-1/2" />
       
       <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col md:flex-row items-center gap-8">
         {/* Left side content */}
@@ -51,56 +51,60 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Right side auth form */}
+        {/* Right side auth form with glass effect */}
         <div className="w-full md:w-1/2">
-          <div className="backdrop-blur-xl bg-background/30 p-8 rounded-lg shadow-lg border border-border/20">
-            <Auth
-              supabaseClient={supabase}
-              appearance={{
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: "#7E69AB",
-                      brandAccent: "#6E59A5",
-                      inputBackground: "white",
-                      inputBorder: "#E5DEFF",
-                      inputText: "#1A1F2C",
-                      inputPlaceholder: "#8E9196",
+          <div className="backdrop-blur-xl bg-background/30 dark:bg-background/20 p-8 rounded-2xl shadow-xl border border-border/20 relative overflow-hidden">
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 pointer-events-none" />
+            <div className="relative z-10">
+              <Auth
+                supabaseClient={supabase}
+                appearance={{
+                  theme: ThemeSupa,
+                  variables: {
+                    default: {
+                      colors: {
+                        brand: "#7E69AB",
+                        brandAccent: "#6E59A5",
+                        inputBackground: "white",
+                        inputBorder: "#E5DEFF",
+                        inputText: "#1A1F2C",
+                        inputPlaceholder: "#8E9196",
+                      },
+                      borderWidths: {
+                        buttonBorderWidth: "1px",
+                        inputBorderWidth: "1px",
+                      },
+                      radii: {
+                        borderRadiusButton: "0.5rem",
+                        buttonBorderRadius: "0.5rem",
+                        inputBorderRadius: "0.5rem",
+                      },
                     },
-                    borderWidths: {
-                      buttonBorderWidth: "1px",
-                      inputBorderWidth: "1px",
+                  },
+                  style: {
+                    button: {
+                      padding: "10px 15px",
+                      fontSize: "14px",
+                      fontWeight: "500",
                     },
-                    radii: {
-                      borderRadiusButton: "0.5rem",
-                      buttonBorderRadius: "0.5rem",
-                      inputBorderRadius: "0.5rem",
+                    input: {
+                      padding: "10px 15px",
+                    },
+                    anchor: {
+                      color: "#6E59A5",
+                      fontSize: "14px",
+                    },
+                    message: {
+                      padding: "10px",
+                      margin: "10px 0",
+                      borderRadius: "0.5rem",
                     },
                   },
-                },
-                style: {
-                  button: {
-                    padding: "10px 15px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                  },
-                  input: {
-                    padding: "10px 15px",
-                  },
-                  anchor: {
-                    color: "#6E59A5",
-                    fontSize: "14px",
-                  },
-                  message: {
-                    padding: "10px",
-                    margin: "10px 0",
-                    borderRadius: "0.5rem",
-                  },
-                },
-              }}
-              providers={["github"]}
-            />
+                }}
+                providers={["github"]}
+              />
+            </div>
           </div>
         </div>
       </div>
