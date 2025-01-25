@@ -17,20 +17,13 @@ export const CreateJob = () => {
   const [selectedSolver, setSelectedSolver] = useState("")
   const { solvers, isLoadingSolvers } = useSolverSelection()
   const { datasets, isLoadingDatasets } = useDatasetSelection()
-  const { submitJob, isSubmitting } = useJobSubmission()
-
-  const handleSubmit = async () => {
-    const selectedDataset = datasets?.find(d => d.id === selectedSolver)
-    const selectedSolverObj = solvers?.find(s => s.id === selectedSolver)
-    
-    if (selectedDataset && selectedSolverObj) {
-      await submitJob({
-        solverId: selectedSolverObj.id,
-        datasetId: selectedDataset.id,
-        parameters: {}
-      })
+  const { handleSubmit, isSubmitting } = useJobSubmission({ 
+    selectedSolver,
+    selectedDataset: selectedSolver, // We're using the same ID for both since they're paired
+    onJobCreated: () => {
+      setSelectedSolver("")
     }
-  }
+  })
 
   const handleSolverSelect = (value: string) => {
     setSelectedSolver(value)

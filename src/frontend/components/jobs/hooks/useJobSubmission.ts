@@ -35,7 +35,7 @@ export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated
           dataset_id: selectedDataset,
           parameters,
           status: 'PENDING',
-          user_id: session.user.id  // Add the user_id here
+          user_id: session.user.id
         })
         .select()
         .single();
