@@ -44,6 +44,7 @@ export type Database = {
           file_path: string
           format: string | null
           id: string
+          is_public: boolean | null
           name: string
           paper_link: string | null
           updated_at: string
@@ -56,6 +57,7 @@ export type Database = {
           file_path: string
           format?: string | null
           id?: string
+          is_public?: boolean | null
           name: string
           paper_link?: string | null
           updated_at?: string
@@ -68,6 +70,7 @@ export type Database = {
           file_path?: string
           format?: string | null
           id?: string
+          is_public?: boolean | null
           name?: string
           paper_link?: string | null
           updated_at?: string
@@ -264,6 +267,7 @@ export type Database = {
           email: string | null
           file_path: string
           id: string
+          is_public: boolean | null
           name: string
           paper_link: string | null
           solver_outputs: Json | null
@@ -277,6 +281,7 @@ export type Database = {
           email?: string | null
           file_path: string
           id?: string
+          is_public?: boolean | null
           name: string
           paper_link?: string | null
           solver_outputs?: Json | null
@@ -290,6 +295,7 @@ export type Database = {
           email?: string | null
           file_path?: string
           id?: string
+          is_public?: boolean | null
           name?: string
           paper_link?: string | null
           solver_outputs?: Json | null

@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import { Brain, ExternalLink, Trash2 } from "lucide-react";
+import { Brain, ExternalLink, Trash2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -18,9 +18,10 @@ import {
 interface SolversTableProps {
   userSolvers: any[];
   onDelete: (id: string) => void;
+  onShare: (solver: any) => void;
 }
 
-export const SolversTable = ({ userSolvers, onDelete }: SolversTableProps) => {
+export const SolversTable = ({ userSolvers, onDelete, onShare }: SolversTableProps) => {
   return (
     <ScrollArea className="h-[400px] rounded-md border">
       <Table>
@@ -60,30 +61,41 @@ export const SolversTable = ({ userSolvers, onDelete }: SolversTableProps) => {
                 )}
               </TableCell>
               <TableCell>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Solver</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this solver? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDelete(solver.id)}
-                        className="bg-red-500 hover:bg-red-600"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onShare(solver)}
+                    disabled={solver.is_public}
+                    title={solver.is_public ? "Already shared" : "Share with community"}
+                  >
+                    <Share2 className={`h-4 w-4 ${solver.is_public ? 'text-gray-400' : 'text-blue-500 hover:text-blue-700'}`} />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Solver</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this solver? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onDelete(solver.id)}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -1,7 +1,7 @@
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { JobsTable } from "./JobsTable";
 import { SolversTable } from "./SolversTable";
@@ -11,11 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 
 export const DashboardView = () => {
   const navigate = useNavigate();
   const session = useSession();
   const queryClient = useQueryClient();
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{ type: 'solver' | 'dataset'; id: string; name: string } | null>(null);
+  const [description, setDescription] = useState("");
 
   const { data: profile } = useQuery({
     queryKey: ['profile', session?.user?.id],
@@ -79,6 +85,35 @@ export const DashboardView = () => {
     enabled: !!session?.user?.id
   });
 
+  const handleShare = async () => {
+    if (!selectedItem || !description) return;
+
+    try {
+      const { error } = await supabase
+        .from(selectedItem.type === 'solver' ? 'solvers' : 'datasets')
+        .update({ 
+          is_public: true,
+          description: description 
+        })
+        .eq('id', selectedItem.id)
+        .eq('user_id', session?.user?.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ 
+        queryKey: [selectedItem.type === 'solver' ? 'userSolvers' : 'userDatasets'] 
+      });
+      
+      toast.success(`${selectedItem.type === 'solver' ? 'Solver' : 'Dataset'} shared with the community`);
+      setShareDialogOpen(false);
+      setSelectedItem(null);
+      setDescription("");
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(`Failed to share ${selectedItem.type}`);
+    }
+  };
+
   const handleDelete = async (type: 'solver' | 'dataset', id: string) => {
     try {
       const { error } = await supabase
@@ -107,7 +142,7 @@ export const DashboardView = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 bg-white">
       <h1 className="text-3xl font-bold">Welcome back!</h1>
       <p className="text-muted-foreground">
         Here's an overview of your optimization platform
@@ -155,7 +190,11 @@ export const DashboardView = () => {
             </div>
             <SolversTable 
               userSolvers={userSolvers || []} 
-              onDelete={(id) => handleDelete('solver', id)} 
+              onDelete={(id) => handleDelete('solver', id)}
+              onShare={(solver) => {
+                setSelectedItem({ type: 'solver', id: solver.id, name: solver.name });
+                setShareDialogOpen(true);
+              }}
             />
           </TabsContent>
 
@@ -169,11 +208,48 @@ export const DashboardView = () => {
             </div>
             <DatasetsTable 
               userDatasets={userDatasets || []} 
-              onDelete={(id) => handleDelete('dataset', id)} 
+              onDelete={(id) => handleDelete('dataset', id)}
+              onShare={(dataset) => {
+                setSelectedItem({ type: 'dataset', id: dataset.id, name: dataset.name });
+                setShareDialogOpen(true);
+              }}
             />
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share with Community</DialogTitle>
+            <DialogDescription>
+              Share your {selectedItem?.type} "{selectedItem?.name}" with the community. 
+              Please provide a detailed description of the {selectedItem?.type === 'solver' ? 'input/output parameters' : 'dataset structure'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder={`Describe your ${selectedItem?.type}...`}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="min-h-[200px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShareDialogOpen(false);
+              setSelectedItem(null);
+              setDescription("");
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleShare} disabled={!description}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
