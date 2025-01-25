@@ -7,8 +7,6 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ThemeProvider } from "next-themes"
-import { ThemeToggle } from "@/components/ThemeToggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -144,56 +142,53 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <SidebarProvider>
-              <div className="flex min-h-screen w-full">
-                {session && <AppSidebar />}
-                <Link 
-                  to="/" 
-                  className="fixed top-4 left-4 z-50 flex items-center space-x-2 text-xl font-bold"
-                >
-                  <img 
-                    src="/placeholder.svg" 
-                    alt="Logo" 
-                    className="h-8 w-auto"
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider>
+            <div className="flex min-h-screen w-full">
+              {session && <AppSidebar />}
+              <Link 
+                to="/" 
+                className="fixed top-4 left-4 z-50 flex items-center space-x-2 text-xl font-bold"
+              >
+                <img 
+                  src="/placeholder.svg" 
+                  alt="Logo" 
+                  className="h-8 w-auto"
+                />
+              </Link>
+              {session && <UserMenu />}
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/solvers" element={<Solvers />} />
+                  <Route path="/datasets" element={<Datasets />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route 
+                    path="/playground" 
+                    element={
+                      <ProtectedRoute>
+                        <Playground />
+                      </ProtectedRoute>
+                    } 
                   />
-                </Link>
-                {session && <UserMenu />}
-                <ThemeToggle />
-                <main className="flex-1">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/solvers" element={<Solvers />} />
-                    <Route path="/datasets" element={<Datasets />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route 
-                      path="/playground" 
-                      element={
-                        <ProtectedRoute>
-                          <Playground />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route path="/community" element={<Community />} />
-                    <Route 
-                      path="/profile" 
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      } 
-                    />
-                  </Routes>
-                </main>
-              </div>
-            </SidebarProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
+                  <Route path="/community" element={<Community />} />
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Routes>
+              </main>
+            </div>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
   )
 }
