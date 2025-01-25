@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
-import { Search, Star, Award } from 'lucide-react';
+import { Search, Star, Award, Download, Heart } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
+import { useSession } from '@supabase/auth-helpers-react';
+import { toast } from "sonner";
+import { useLikedSolvers } from "@/hooks/useLikedSolvers";
 
 const Community = () => {
+  const session = useSession();
   const [searchQuery, setSearchQuery] = useState('');
+  const { likedSolvers, setLikedSolvers } = useLikedSolvers();
 
   const { data: solvers = [], isLoading: solversLoading } = useQuery({
     queryKey: ['solvers'],
@@ -46,6 +52,70 @@ const Community = () => {
       }));
     }
   });
+
+  const handleDownload = async (type: 'solver' | 'dataset', item: any) => {
+    try {
+      const bucket = type === 'solver' ? 'solvers' : 'datasets';
+      const { data, error } = await supabase
+        .storage
+        .from(bucket)
+        .download(item.file_path);
+
+      if (error) throw error;
+
+      // Create a download link
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.name + (type === 'solver' ? '.py' : '.npy');
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success(`${type === 'solver' ? 'Solver' : 'Dataset'} downloaded successfully`);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error(`Failed to download ${type}. Please try again.`);
+    }
+  };
+
+  const handleLike = async (solverId: string) => {
+    if (!session?.user) {
+      toast.error("Please login to like solvers");
+      return;
+    }
+
+    try {
+      if (likedSolvers.includes(solverId)) {
+        // Unlike
+        const { error } = await supabase
+          .from('solver_likes')
+          .delete()
+          .eq('solver_id', solverId)
+          .eq('user_id', session.user.id);
+
+        if (error) throw error;
+        setLikedSolvers(prev => prev.filter(id => id !== solverId));
+        toast.success("Solver unliked");
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('solver_likes')
+          .insert({
+            solver_id: solverId,
+            user_id: session.user.id
+          });
+
+        if (error) throw error;
+        setLikedSolvers(prev => [...prev, solverId]);
+        toast.success("Solver liked");
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error("Failed to update like status");
+    }
+  };
 
   const filteredSolvers = solvers.filter(solver =>
     solver.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,6 +168,26 @@ const Community = () => {
                       {solver.description || 'No description available'}
                     </p>
                   </CardContent>
+                  <CardFooter className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleLike(solver.id)}
+                    >
+                      <Heart 
+                        className={likedSolvers.includes(solver.id) ? "fill-red-500 text-red-500" : ""}
+                      />
+                      {likedSolvers.includes(solver.id) ? 'Unlike' : 'Like'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload('solver', solver)}
+                    >
+                      <Download className="mr-2" />
+                      Download
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -122,6 +212,17 @@ const Community = () => {
                       {dataset.description || 'No description available'}
                     </p>
                   </CardContent>
+                  <CardFooter>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => handleDownload('dataset', dataset)}
+                    >
+                      <Download className="mr-2" />
+                      Download
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
