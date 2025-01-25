@@ -1,5 +1,5 @@
 import { SolverUpload } from "@/components/uploads/SolverUpload";
-import { Award, Database, RocketLaunch } from "lucide-react";
+import { Rocket, Shield, Award } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => (
@@ -31,12 +31,12 @@ const Solvers = () => {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: "200ms" }}>
           <FeatureCard
-            icon={RocketLaunch}
+            icon={Rocket}
             title="Fast Deployment"
             description="Upload your solvers and deploy them instantly with our streamlined process"
           />
           <FeatureCard
-            icon={Database}
+            icon={Shield}
             title="Secure Storage"
             description="Your solvers are stored securely with enterprise-grade encryption"
           />
