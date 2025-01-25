@@ -10,11 +10,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const DashboardView = () => {
   const navigate = useNavigate();
   const session = useSession();
   const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session?.user?.id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session?.user?.id,
+  });
 
   const { data: userSolvers } = useQuery({
     queryKey: ['userSolvers', session?.user?.id],
@@ -96,6 +112,21 @@ export const DashboardView = () => {
       <p className="text-muted-foreground">
         Here's an overview of your optimization platform
       </p>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <p><strong>Email:</strong> {profile?.email}</p>
+            <p><strong>Username:</strong> {profile?.username}</p>
+            {profile?.github_username && (
+              <p><strong>GitHub:</strong> {profile.github_username}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       
       <DashboardStats />
       

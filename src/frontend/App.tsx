@@ -22,7 +22,6 @@ import Solvers from "./pages/Solvers"
 import Datasets from "./pages/Datasets"
 import Playground from "./pages/Playground"
 import Community from "./pages/Community"
-import Profile from "./pages/Profile"
 import Home from "./pages/Index"
 
 const queryClient = new QueryClient()
@@ -89,9 +88,9 @@ const UserMenu = () => {
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => navigate('/profile')}>
+          <DropdownMenuItem onClick={() => navigate('/')}>
             <UserCircle className="mr-2 h-4 w-4" />
-            Profile
+            Dashboard
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
@@ -175,14 +174,6 @@ const App = () => {
                     } 
                   />
                   <Route path="/community" element={<Community />} />
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } 
-                  />
                 </Routes>
               </main>
             </div>

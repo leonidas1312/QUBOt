@@ -5,8 +5,8 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -25,12 +25,12 @@ const items = [
     hideWhenAuth: true,
   },
   {
-    title: "Solvers",
+    title: "Create Solver",
     icon: Box,
     url: "/solvers",
   },
   {
-    title: "Datasets",
+    title: "Upload Dataset",
     icon: Database,
     url: "/datasets",
   },
@@ -44,13 +44,7 @@ const items = [
     title: "Community",
     icon: Users,
     url: "/community",
-  },
-  {
-    title: "Profile",
-    icon: User,
-    url: "/profile",
-    requireAuth: true,
-  },
+  }
 ]
 
 export function AppSidebar() {
