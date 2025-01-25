@@ -1,19 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Video, LogIn, ExternalLink } from "lucide-react";
+import { Video, LogIn, ExternalLink, Trash2 } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDistanceToNow } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Database, CheckCircle2, Clock, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
   const session = useSession();
+  const queryClient = useQueryClient();
 
   const { data: userSolvers } = useQuery({
     queryKey: ['userSolvers', session?.user?.id],
@@ -61,6 +74,35 @@ const Index = () => {
     },
     enabled: !!session?.user?.id
   });
+
+  const handleDelete = async (type: 'solver' | 'dataset', id: string) => {
+    try {
+      const { error } = await supabase
+        .from(type === 'solver' ? 'solvers' : 'datasets')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', session?.user?.id);
+
+      if (error) throw error;
+
+      // Also delete the file from storage
+      const { error: storageError } = await supabase
+        .storage
+        .from(type === 'solver' ? 'solvers' : 'datasets')
+        .remove([`${id}`]);
+
+      if (storageError) {
+        console.error('Error deleting file:', storageError);
+      }
+
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: [type === 'solver' ? 'userSolvers' : 'userDatasets'] });
+      toast.success(`${type === 'solver' ? 'Solver' : 'Dataset'} deleted successfully`);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(`Failed to delete ${type}`);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -143,6 +185,7 @@ const Index = () => {
                       <TableHead>Description</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Paper</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -171,6 +214,32 @@ const Index = () => {
                             'N/A'
                           )}
                         </TableCell>
+                        <TableCell>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Solver</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this solver? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete('solver', solver.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -193,6 +262,7 @@ const Index = () => {
                       <TableHead>Description</TableHead>
                       <TableHead>Format</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -207,6 +277,32 @@ const Index = () => {
                         </TableCell>
                         <TableCell>{dataset.format || 'Unknown'}</TableCell>
                         <TableCell>{formatDistanceToNow(new Date(dataset.created_at))} ago</TableCell>
+                        <TableCell>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Dataset</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this dataset? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete('dataset', dataset.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
