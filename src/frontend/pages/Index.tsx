@@ -2,13 +2,48 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Video, LogIn } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
-import { useEffect } from "react";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { RecentJobs } from "@/components/dashboard/RecentJobs";
+import { ItemGrid } from "@/components/uploads/ItemGrid";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const navigate = useNavigate();
   const session = useSession();
+
+  const { data: userSolvers } = useQuery({
+    queryKey: ['userSolvers', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('solvers')
+        .select('*')
+        .eq('user_id', session?.user?.id)
+        .order('created_at', { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  const { data: userDatasets } = useQuery({
+    queryKey: ['userDatasets', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('datasets')
+        .select('*')
+        .eq('user_id', session?.user?.id)
+        .order('created_at', { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!session?.user?.id,
+  });
 
   if (session) {
     return (
@@ -20,7 +55,38 @@ const Index = () => {
         
         <DashboardStats />
         
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4">
+          <div className="grid gap-4">
+            <Tabs defaultValue="solvers" className="w-full">
+              <TabsList>
+                <TabsTrigger value="solvers">My Recent Solvers</TabsTrigger>
+                <TabsTrigger value="datasets">My Recent Datasets</TabsTrigger>
+              </TabsList>
+              <TabsContent value="solvers">
+                <div className="grid gap-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Recent Solvers</h2>
+                    <Button onClick={() => navigate('/solvers')} variant="outline">
+                      View All
+                    </Button>
+                  </div>
+                  <ItemGrid items={userSolvers || []} type="solver" />
+                </div>
+              </TabsContent>
+              <TabsContent value="datasets">
+                <div className="grid gap-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Recent Datasets</h2>
+                    <Button onClick={() => navigate('/datasets')} variant="outline">
+                      View All
+                    </Button>
+                  </div>
+                  <ItemGrid items={userDatasets || []} type="dataset" />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
           <RecentJobs />
         </div>
       </div>
