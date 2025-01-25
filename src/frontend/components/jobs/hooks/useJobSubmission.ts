@@ -27,7 +27,7 @@ export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated
 
     setIsSubmitting(true);
     try {
-      // Create the job with user_id
+      // Create the job
       const { data: job, error: jobError } = await supabase
         .from("optimization_jobs")
         .insert({
@@ -35,7 +35,7 @@ export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated
           dataset_id: selectedDataset,
           parameters,
           status: 'PENDING',
-          user_id: session.user.id  // Add the user_id here
+          user_id: session.user.id
         })
         .select()
         .single();
@@ -43,7 +43,7 @@ export const useJobSubmission = ({ selectedDataset, selectedSolver, onJobCreated
       if (jobError) throw jobError;
 
       // Call the Edge Function to start the optimization
-      const { data, error } = await supabase.functions.invoke('run-optimization', {
+      const { error } = await supabase.functions.invoke('run-optimization', {
         body: { jobId: job.id }
       });
 
