@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Video, LogIn, ExternalLink, Trash2 } from "lucide-react";
+import { Video, LogIn, ExternalLink, Trash2, Plus, Upload } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -174,7 +174,8 @@ const Index = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold">My Solvers</h2>
                 <Button onClick={() => navigate('/solvers')} variant="outline">
-                  View All
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Solver
                 </Button>
               </div>
               <ScrollArea className="h-[400px] rounded-md border">
@@ -251,7 +252,8 @@ const Index = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold">My Datasets</h2>
                 <Button onClick={() => navigate('/datasets')} variant="outline">
-                  View All
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Dataset
                 </Button>
               </div>
               <ScrollArea className="h-[400px] rounded-md border">
