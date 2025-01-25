@@ -3,17 +3,29 @@ import { useNavigate } from "react-router-dom";
 import { Video, LogIn } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { useEffect } from "react";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { RecentJobs } from "@/components/dashboard/RecentJobs";
 
 const Index = () => {
   const navigate = useNavigate();
   const session = useSession();
 
-  // Redirect authenticated users to playground
-  useEffect(() => {
-    if (session) {
-      navigate('/playground');
-    }
-  }, [session, navigate]);
+  if (session) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <h1 className="text-3xl font-bold">Welcome back!</h1>
+        <p className="text-muted-foreground">
+          Here's an overview of your optimization platform
+        </p>
+        
+        <DashboardStats />
+        
+        <div className="grid gap-4 md:grid-cols-4">
+          <RecentJobs />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center text-center px-4 py-12 bg-gradient-to-br from-purple-700 via-orange-500 to-green-500">
