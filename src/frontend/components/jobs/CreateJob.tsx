@@ -1,14 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CreateJobForm } from "./CreateJobForm";
 
-export const CreateJob = () => {
+interface CreateJobProps {
+  availableSolvers: any[];
+  availableDatasets: any[];
+}
+
+export const CreateJob = ({ availableSolvers, availableDatasets }: CreateJobProps) => {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Create New Optimization Job</CardTitle>
+      <CardHeader className="pb-3">
+        <h2 className="text-lg font-semibold">Create New Job</h2>
       </CardHeader>
       <CardContent>
-        <CreateJobForm />
+        <CreateJobForm 
+          availableSolvers={availableSolvers}
+          availableDatasets={availableDatasets}
+        />
       </CardContent>
     </Card>
   );

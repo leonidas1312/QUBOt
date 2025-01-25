@@ -1,19 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { JobParameters } from "./JobParameters";
-import { useDatasetSelection } from "./hooks/useDatasetSelection";
-import { useSolverSelection } from "./hooks/useSolverSelection";
 import { useJobSubmission } from "./hooks/useJobSubmission";
 
-export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) => {
+interface CreateJobFormProps {
+  availableSolvers: any[];
+  availableDatasets: any[];
+}
+
+export const CreateJobForm = ({ availableSolvers, availableDatasets, onJobCreated }: CreateJobFormProps & { onJobCreated?: () => void }) => {
   const session = useSession();
-  const { datasets, selectedDataset, handleDatasetChange } = useDatasetSelection();
-  const { solvers, selectedSolver, handleSolverChange } = useSolverSelection();
+  const [selectedDataset, setSelectedDataset] = useState("");
+  const [selectedSolver, setSelectedSolver] = useState("");
+  
   const { parameters, setParameters, handleSubmit, isSubmitting } = useJobSubmission({
     selectedDataset,
     selectedSolver,
@@ -21,7 +24,7 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
   });
 
   // Get the selected dataset name
-  const selectedDatasetName = datasets.find(d => d.id === selectedDataset)?.name || '';
+  const selectedDatasetName = availableDatasets.find(d => d.id === selectedDataset)?.name || '';
 
   if (!session?.user?.id) {
     return (
@@ -35,12 +38,12 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
     <div className="space-y-6">
       <div className="space-y-2">
         <Label>Dataset</Label>
-        <Select value={selectedDataset} onValueChange={handleDatasetChange}>
+        <Select value={selectedDataset} onValueChange={setSelectedDataset}>
           <SelectTrigger>
             <SelectValue placeholder="Select a dataset" />
           </SelectTrigger>
           <SelectContent>
-            {datasets.map((dataset) => (
+            {availableDatasets.map((dataset) => (
               <SelectItem key={dataset.id} value={dataset.id}>
                 {dataset.name}
               </SelectItem>
@@ -51,12 +54,12 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
 
       <div className="space-y-2">
         <Label>Solver</Label>
-        <Select value={selectedSolver} onValueChange={handleSolverChange}>
+        <Select value={selectedSolver} onValueChange={setSelectedSolver}>
           <SelectTrigger>
             <SelectValue placeholder="Select a solver" />
           </SelectTrigger>
           <SelectContent>
-            {solvers.map((solver) => (
+            {availableSolvers.map((solver) => (
               <SelectItem key={solver.id} value={solver.id}>
                 {solver.name}
               </SelectItem>
@@ -68,7 +71,7 @@ export const CreateJobForm = ({ onJobCreated }: { onJobCreated?: () => void }) =
       {selectedSolver && (
         <JobParameters
           parameters={parameters}
-          solverParameters={solvers.find(s => s.id === selectedSolver)?.solver_parameters || {}}
+          solverParameters={availableSolvers.find(s => s.id === selectedSolver)?.solver_parameters || {}}
           onParameterChange={setParameters}
           datasetName={selectedDatasetName}
         />
