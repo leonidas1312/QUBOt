@@ -157,7 +157,7 @@ const App = () => {
                   className="fixed top-4 left-4 z-50 flex items-center space-x-2 text-xl font-bold"
                 >
                   <img 
-                    src="/lovable-uploads/14b5a50c-26dc-4bd0-8713-91e805c48144.png" 
+                    src="/placeholder.svg" 
                     alt="Logo" 
                     className="h-8 w-auto"
                   />
