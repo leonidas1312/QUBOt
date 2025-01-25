@@ -14,7 +14,7 @@ export const DashboardView = () => {
   const session = useSession();
   const queryClient = useQueryClient();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<{ type: 'solver' | 'dataset'; id: string; name: string } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ type: 'solver' | 'dataset'; id: string; name: string; solver_parameters?: any; solver_outputs?: any } | null>(null);
   const [description, setDescription] = useState("");
 
   const { data: profile } = useQuery({
@@ -83,12 +83,20 @@ export const DashboardView = () => {
     if (!selectedItem || !description) return;
 
     try {
+      let updateData: any = { 
+        is_public: true,
+        description: description 
+      };
+
+      // For solvers, include the updated parameter descriptions
+      if (selectedItem.type === 'solver') {
+        updateData.solver_parameters = selectedItem.solver_parameters;
+        updateData.solver_outputs = selectedItem.solver_outputs;
+      }
+
       const { error } = await supabase
         .from(selectedItem.type === 'solver' ? 'solvers' : 'datasets')
-        .update({ 
-          is_public: true,
-          description: description 
-        })
+        .update(updateData)
         .eq('id', selectedItem.id)
         .eq('user_id', session?.user?.id);
 
@@ -153,7 +161,19 @@ export const DashboardView = () => {
           onNavigate={navigate}
           onDelete={handleDelete}
           onShare={(item, type) => {
-            setSelectedItem({ type, id: item.id, name: item.name });
+            const fullItem = type === 'solver' 
+              ? userSolvers?.find(s => s.id === item.id)
+              : userDatasets?.find(d => d.id === item.id);
+              
+            setSelectedItem({ 
+              type, 
+              id: item.id, 
+              name: item.name,
+              ...(type === 'solver' ? {
+                solver_parameters: fullItem?.solver_parameters || { inputs: [] },
+                solver_outputs: fullItem?.solver_outputs || []
+              } : {})
+            });
             setShareDialogOpen(true);
           }}
         />
