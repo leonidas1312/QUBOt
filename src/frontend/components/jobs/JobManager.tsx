@@ -1,23 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Download } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Job {
-  id: string;
-  solver_id: string;
-  dataset_id: string;
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  parameters: Record<string, any>;
-  results: any;
-  logs: string[];
-  error_message?: string;
-}
+import { JobHeader } from './JobHeader';
+import { JobProgress } from './JobProgress';
+import { JobLogs } from './JobLogs';
+import { JobResults } from './JobResults';
+import type { Job } from './types';
 
 interface JobManagerProps {
   currentJobId?: string;
@@ -112,32 +102,6 @@ ${job.logs?.join('\n') || 'No logs available'}
     window.URL.revokeObjectURL(url);
   };
 
-  const getStatusColor = (status: Job['status']) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'bg-green-500';
-      case 'FAILED':
-        return 'bg-red-500';
-      case 'RUNNING':
-        return 'bg-blue-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
-  const getProgressValue = (status: Job['status']) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 100;
-      case 'FAILED':
-        return 100;
-      case 'RUNNING':
-        return 50;
-      default:
-        return 0;
-    }
-  };
-
   if (isLoading) {
     return <div>Loading job status...</div>;
   }
@@ -149,63 +113,16 @@ ${job.logs?.join('\n') || 'No logs available'}
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Job {currentJob.id.slice(0, 8)}</span>
-            <div className="flex items-center gap-2">
-              {currentJob.status === 'COMPLETED' && currentJob.results && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownloadResults(currentJob)}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Results
-                </Button>
-              )}
-              <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(currentJob.status)}`}>
-                {currentJob.status}
-              </span>
-            </div>
-          </CardTitle>
-          <CardDescription>
-            Started at: {new Date(currentJob.created_at).toLocaleString()}
-          </CardDescription>
-        </CardHeader>
+        <JobHeader job={currentJob} onDownload={handleDownloadResults} />
         <CardContent>
           {currentJob.error_message && (
             <div className="text-red-500 mb-4">
               Error: {currentJob.error_message}
             </div>
           )}
-          {currentJob.status === 'RUNNING' && (
-            <Progress value={getProgressValue(currentJob.status)} className="mb-4" />
-          )}
-          {currentJob.logs && currentJob.logs.length > 0 && (
-            <div className="space-y-2 mt-4">
-              <h3 className="font-semibold">Solver Output:</h3>
-              <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                <div className="space-y-2">
-                  {currentJob.logs.map((log, index) => (
-                    <div key={index} className="font-mono text-sm">
-                      {log}
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
-          {currentJob.results && (
-            <div className="space-y-2 mt-4">
-              <h3 className="font-semibold">Results:</h3>
-              <div className="bg-gray-100 p-4 rounded">
-                <pre className="whitespace-pre-wrap font-mono text-sm">
-                  {JSON.stringify(currentJob.results, null, 2)}
-                </pre>
-              </div>
-            </div>
-          )}
+          <JobProgress status={currentJob.status} />
+          <JobLogs logs={currentJob.logs} />
+          <JobResults results={currentJob.results} />
         </CardContent>
       </Card>
     </div>
