@@ -170,7 +170,7 @@ export const DashboardView = () => {
               id: item.id, 
               name: item.name,
               ...(type === 'solver' ? {
-                solver_parameters: fullItem?.solver_parameters || { inputs: [] },
+                solver_parameters: fullItem?.solver_parameters || {},
                 solver_outputs: fullItem?.solver_outputs || []
               } : {})
             });
