@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Job {
   id: string;
@@ -18,33 +19,40 @@ interface Job {
   error_message?: string;
 }
 
-export const JobManager = () => {
-  const [jobs, setJobs] = useState<Job[]>([]);
+interface JobManagerProps {
+  currentJobId?: string;
+}
+
+export const JobManager = ({ currentJobId }: JobManagerProps) => {
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const session = useSession();
 
   useEffect(() => {
-    if (session?.user) {
-      fetchJobs();
+    if (session?.user && currentJobId) {
+      fetchJob();
       const channel = subscribeToJobUpdates();
       return () => {
         channel.unsubscribe();
       };
     }
-  }, [session]);
+  }, [session, currentJobId]);
 
-  const fetchJobs = async () => {
+  const fetchJob = async () => {
+    if (!currentJobId) return;
+    
     try {
       const { data, error } = await supabase
         .from('optimization_jobs')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('id', currentJobId)
+        .single();
 
       if (error) throw error;
-      setJobs(data || []);
+      setCurrentJob(data);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
-      toast.error('Failed to fetch jobs');
+      console.error('Error fetching job:', error);
+      toast.error('Failed to fetch job');
     } finally {
       setIsLoading(false);
     }
@@ -59,17 +67,12 @@ export const JobManager = () => {
           event: '*',
           schema: 'public',
           table: 'optimization_jobs',
+          filter: `id=eq.${currentJobId}`,
         },
         (payload) => {
           console.log('Job update received:', payload);
           if (payload.eventType === 'UPDATE') {
-            setJobs(prevJobs => 
-              prevJobs.map(job => 
-                job.id === payload.new.id ? { ...job, ...payload.new } : job
-              )
-            );
-          } else if (payload.eventType === 'INSERT') {
-            setJobs(prevJobs => [payload.new, ...prevJobs]);
+            setCurrentJob(payload.new as Job);
           }
         }
       )
@@ -136,70 +139,75 @@ ${job.logs?.join('\n') || 'No logs available'}
   };
 
   if (isLoading) {
-    return <div>Loading jobs...</div>;
+    return <div>Loading job status...</div>;
+  }
+
+  if (!currentJob) {
+    return null;
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Optimization Jobs</h2>
-      {jobs.length === 0 ? (
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-center text-gray-500">No jobs found</p>
-          </CardContent>
-        </Card>
-      ) : (
-        jobs.map((job) => (
-          <Card key={job.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Job {job.id.slice(0, 8)}</span>
-                <div className="flex items-center gap-2">
-                  {job.status === 'COMPLETED' && job.results && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadResults(job)}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download Results
-                    </Button>
-                  )}
-                  <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(job.status)}`}>
-                    {job.status}
-                  </span>
-                </div>
-              </CardTitle>
-              <CardDescription>
-                Created at: {new Date(job.created_at).toLocaleString()}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {job.error_message && (
-                <div className="text-red-500 mb-4">
-                  Error: {job.error_message}
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Job {currentJob.id.slice(0, 8)}</span>
+            <div className="flex items-center gap-2">
+              {currentJob.status === 'COMPLETED' && currentJob.results && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownloadResults(currentJob)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Results
+                </Button>
               )}
-              {job.status === 'RUNNING' && (
-                <Progress value={getProgressValue(job.status)} className="mb-4" />
-              )}
-              {job.logs && job.logs.length > 0 && (
-                <div className="space-y-2 mt-4">
-                  <h3 className="font-semibold">Logs:</h3>
-                  <div className="bg-gray-100 p-4 rounded max-h-40 overflow-y-auto">
-                    {job.logs.map((log, index) => (
-                      <div key={index} className="font-mono text-sm">
-                        {log}
-                      </div>
-                    ))}
-                  </div>
+              <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(currentJob.status)}`}>
+                {currentJob.status}
+              </span>
+            </div>
+          </CardTitle>
+          <CardDescription>
+            Started at: {new Date(currentJob.created_at).toLocaleString()}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {currentJob.error_message && (
+            <div className="text-red-500 mb-4">
+              Error: {currentJob.error_message}
+            </div>
+          )}
+          {currentJob.status === 'RUNNING' && (
+            <Progress value={getProgressValue(currentJob.status)} className="mb-4" />
+          )}
+          {currentJob.logs && currentJob.logs.length > 0 && (
+            <div className="space-y-2 mt-4">
+              <h3 className="font-semibold">Solver Output:</h3>
+              <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                <div className="space-y-2">
+                  {currentJob.logs.map((log, index) => (
+                    <div key={index} className="font-mono text-sm">
+                      {log}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        ))
-      )}
+              </ScrollArea>
+            </div>
+          )}
+          {currentJob.results && (
+            <div className="space-y-2 mt-4">
+              <h3 className="font-semibold">Results:</h3>
+              <div className="bg-gray-100 p-4 rounded">
+                <pre className="whitespace-pre-wrap font-mono text-sm">
+                  {JSON.stringify(currentJob.results, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
