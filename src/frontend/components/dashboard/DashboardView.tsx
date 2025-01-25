@@ -1,19 +1,13 @@
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Plus, Upload, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { JobsTable } from "./JobsTable";
-import { SolversTable } from "./SolversTable";
-import { DatasetsTable } from "./DatasetsTable";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { ProfileCard } from "./ProfileCard";
+import { ShareDialog } from "./ShareDialog";
+import { DashboardTabs } from "./DashboardTabs";
 
 export const DashboardView = () => {
   const navigate = useNavigate();
@@ -148,108 +142,31 @@ export const DashboardView = () => {
         Here's an overview of your optimization platform
       </p>
 
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p><strong>Email:</strong> {profile?.email}</p>
-            <p><strong>Username:</strong> {profile?.username}</p>
-            {profile?.github_username && (
-              <p><strong>GitHub:</strong> {profile.github_username}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      
+      <ProfileCard profile={profile} />
       <DashboardStats />
       
       <div className="grid gap-6">
-        <Tabs defaultValue="jobs" className="w-full">
-          <TabsList>
-            <TabsTrigger value="jobs">Recent Jobs</TabsTrigger>
-            <TabsTrigger value="solvers">My Solvers</TabsTrigger>
-            <TabsTrigger value="datasets">My Datasets</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="jobs" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Recent Jobs</h2>
-            </div>
-            <JobsTable recentJobs={recentJobs || []} />
-          </TabsContent>
-
-          <TabsContent value="solvers" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">My Solvers</h2>
-              <Button onClick={() => navigate('/solvers')} variant="outline">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Solver
-              </Button>
-            </div>
-            <SolversTable 
-              userSolvers={userSolvers || []} 
-              onDelete={(id) => handleDelete('solver', id)}
-              onShare={(solver) => {
-                setSelectedItem({ type: 'solver', id: solver.id, name: solver.name });
-                setShareDialogOpen(true);
-              }}
-            />
-          </TabsContent>
-
-          <TabsContent value="datasets" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">My Datasets</h2>
-              <Button onClick={() => navigate('/datasets')} variant="outline">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Dataset
-              </Button>
-            </div>
-            <DatasetsTable 
-              userDatasets={userDatasets || []} 
-              onDelete={(id) => handleDelete('dataset', id)}
-              onShare={(dataset) => {
-                setSelectedItem({ type: 'dataset', id: dataset.id, name: dataset.name });
-                setShareDialogOpen(true);
-              }}
-            />
-          </TabsContent>
-        </Tabs>
+        <DashboardTabs
+          recentJobs={recentJobs || []}
+          userSolvers={userSolvers || []}
+          userDatasets={userDatasets || []}
+          onNavigate={navigate}
+          onDelete={handleDelete}
+          onShare={(item, type) => {
+            setSelectedItem({ type, id: item.id, name: item.name });
+            setShareDialogOpen(true);
+          }}
+        />
       </div>
 
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share with Community</DialogTitle>
-            <DialogDescription>
-              Share your {selectedItem?.type} "{selectedItem?.name}" with the community. 
-              Please provide a detailed description of the {selectedItem?.type === 'solver' ? 'input/output parameters' : 'dataset structure'}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Textarea
-              placeholder={`Describe your ${selectedItem?.type}...`}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[200px]"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShareDialogOpen(false);
-              setSelectedItem(null);
-              setDescription("");
-            }}>
-              Cancel
-            </Button>
-            <Button onClick={handleShare} disabled={!description}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        selectedItem={selectedItem}
+        description={description}
+        onDescriptionChange={setDescription}
+        onShare={handleShare}
+      />
     </div>
   );
 };
