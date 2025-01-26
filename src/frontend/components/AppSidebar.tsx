@@ -1,4 +1,4 @@
-import { Home, LogIn, Database, Box, Users, Terminal, User } from "lucide-react"
+import { Home, LogIn, Database, Box, Users, Terminal, FileText } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useSession } from "@supabase/auth-helpers-react"
 import {
@@ -44,6 +44,11 @@ const items = [
     title: "Community",
     icon: Users,
     url: "/community",
+  },
+  {
+    title: "Documentation",
+    icon: FileText,
+    url: "/docs",
   }
 ]
 

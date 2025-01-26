@@ -12,7 +12,8 @@ import { Parameter, extractParameters, extractOutputs } from "./solverUtils";
 import { validateGuidelines } from "./guidelineValidation";
 import { ParameterDescriptionDialog } from "./ParameterDescriptionDialog";
 import { RequirementsDialog } from "./RequirementsDialog";
-import { Shuffle, Plus, Info, FileText } from "lucide-react";
+import { Shuffle, Plus, Info, FileText, Link as LinkIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const SolverUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -149,7 +150,7 @@ export const SolverUpload = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <h3 className="text-lg font-semibold">Upload Solver</h3>
           <p className="text-sm text-muted-foreground">
-            Upload your `.py` file containing the solver algorithm.
+            Upload your solver algorithm in a `.py` file.
           </p>
 
           <FileUploadZone
@@ -160,81 +161,106 @@ export const SolverUpload = () => {
             handleFileChange={handleFileChange}
           />
 
-          <div className="flex gap-4 items-center">
-            <Input
-              placeholder="Solver name"
-              value={solverName}
-              onChange={(e) => setSolverName(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={generateRandomName}
-              className="whitespace-nowrap"
-            >
-              <Shuffle className="w-4 h-4 mr-2" />
-              Random Name
-            </Button>
-          </div>
-
-          <Input
-            type="url"
-            placeholder="Link to related paper (optional)"
-            value={paperLink}
-            onChange={(e) => setPaperLink(e.target.value)}
-          />
-
-          <Textarea
-            placeholder="Describe what this solver does..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="min-h-[100px]"
-          />
-
-          {file && (
-            <div className="flex flex-wrap gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowRequirementsDialog(true)}
-                className={requirementsFile ? "bg-green-50" : ""}
+          <AnimatePresence>
+            {file && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-6 overflow-hidden"
               >
-                <FileText className="w-4 h-4 mr-2" />
-                {requirementsFile ? "Requirements.txt Added" : "Add Requirements.txt"}
-              </Button>
-              {inputs.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowInputDialog(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Configure Input Parameters ({inputs.length})
-                </Button>
-              )}
-              {outputs.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowOutputDialog(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Configure Output Parameters ({outputs.length})
-                </Button>
-              )}
-            </div>
-          )}
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <SolverGuidelines validation={guidelineValidation} />
+                </div>
 
-          <SolverGuidelines validation={guidelineValidation} />
+                {guidelineValidation && Object.values(guidelineValidation).every(Boolean) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex gap-4 items-center">
+                      <Input
+                        placeholder="Solver name"
+                        value={solverName}
+                        onChange={(e) => setSolverName(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={generateRandomName}
+                        className="whitespace-nowrap"
+                      >
+                        <Shuffle className="w-4 h-4 mr-2" />
+                        Random Name
+                      </Button>
+                    </div>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isProcessing || !guidelineValidation || !Object.values(guidelineValidation).every(Boolean) || !requirementsFile}
-          >
-            {isProcessing ? "Uploading..." : "Upload Solver"}
-          </Button>
+                    <div className="relative">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Related Paper (Optional)</span>
+                      </div>
+                      <Input
+                        type="url"
+                        placeholder="Link to related paper"
+                        value={paperLink}
+                        onChange={(e) => setPaperLink(e.target.value)}
+                      />
+                    </div>
+
+                    <Textarea
+                      placeholder="Describe what this solver does..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+
+                    <div className="flex flex-wrap gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowRequirementsDialog(true)}
+                        className={requirementsFile ? "bg-green-50" : ""}
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        {requirementsFile ? "Requirements.txt Added" : "Add Requirements.txt"}
+                      </Button>
+                      {inputs.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowInputDialog(true)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Configure Input Parameters ({inputs.length})
+                        </Button>
+                      )}
+                      {outputs.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowOutputDialog(true)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Configure Output Parameters ({outputs.length})
+                        </Button>
+                      )}
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isProcessing || !guidelineValidation || !Object.values(guidelineValidation).every(Boolean) || !requirementsFile}
+                    >
+                      {isProcessing ? "Uploading..." : "Upload Solver"}
+                    </Button>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </form>
       </Card>
 
